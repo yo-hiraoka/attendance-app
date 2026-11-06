@@ -50,3 +50,16 @@ Blade側の名前はフォーム入力名または表示用の変数名であり
 
 - Issue #2：提供Blade・CSS・Vite設定
 - Issue #3：DB Migration・Model・リレーション
+
+## タイムゾーン・日時管理方針
+
+- Laravelのタイムゾーンは `Asia/Tokyo` とする。
+- `work_date` は日本時間を基準とした勤務日を保存する。
+- `clock_in_at`、`clock_out_at`、`started_at`、`ended_at` などの日時は、UTCで保存する方針とする。
+- Bladeへの表示時には日本時間（JST）へ変換する。
+- フォームから入力された時刻は、対象の勤務日と組み合わせ、UTCへ変換してから保存する。
+- 日付をまたぐ勤務や休憩の扱いは、打刻機能実装時に要件と照合する。
+
+**実装上の注意：** Laravelのタイムゾーン設定やEloquentの `datetime` キャストだけでは、UTC保存は保証されない。Controllerや日時変換処理を実装する際に、保存値と表示値の変換テストを行う。
+
+本項目は設計方針であり、UTC保存・JST表示の実装は今後のIssueで行う。

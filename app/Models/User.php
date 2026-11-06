@@ -42,4 +42,24 @@ class User extends Authenticatable
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
+
+    public function attendances()
+    {
+        return $this->hasMany(Attendance::class);
+    }
+
+    public function correctionRequests()
+    {
+        return $this->hasMany(StampCorrectionRequest::class);
+    }
+
+    public function approvedCorrectionRequests()
+    {
+        return $this->hasMany(StampCorrectionRequest::class, 'approved_by');
+    }
+
+    public function isAdmin(): bool
+    {
+        return $this->role === 'admin';
+    }
 }
