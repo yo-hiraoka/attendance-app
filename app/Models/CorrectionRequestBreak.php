@@ -4,9 +4,11 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class CorrectionRequestBreak extends Model
 {
+    use HasFactory;
     protected $fillable = [
         'correction_request_id',
         'started_at',
