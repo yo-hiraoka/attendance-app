@@ -33,4 +33,3 @@ class AttendanceFactory extends Factory
         ];
     }
 }
-
