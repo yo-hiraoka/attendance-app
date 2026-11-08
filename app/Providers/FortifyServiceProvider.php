@@ -15,6 +15,8 @@ use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
 use Laravel\Fortify\Fortify;
 use App\Http\Responses\RegistrationResponse;
 use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
+use App\Http\Responses\LogoutResponse;
+use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -26,6 +28,10 @@ class FortifyServiceProvider extends ServiceProvider
         $this->app->singleton(
             RegisterResponseContract::class,
             RegistrationResponse::class
+        );
+        $this->app->singleton(
+            LogoutResponseContract::class,
+            LogoutResponse::class
         );
     }
 
