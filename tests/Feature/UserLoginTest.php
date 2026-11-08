@@ -87,4 +87,24 @@ class UserLoginTest extends TestCase
 
         $response->assertRedirect('/');
     }
+public function test_guest_is_redirected_from_home_to_login(): void
+{
+    $response = $this->get('/');
+
+    $response->assertRedirect(route('login'));
+}
+
+public function test_authenticated_user_can_view_home(): void
+{
+    $user = User::factory()->create();
+
+    $this->actingAs($user);
+
+    $response = $this->get('/');
+
+    $response->assertOk();
+    $response->assertSee($user->name);
+    $response->assertSee('ログアウト');
+}
+
 }
