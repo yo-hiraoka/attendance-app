@@ -24,21 +24,33 @@
         <div class="current-time">
             <input class="current-time__item" type="text" id="currentTime" value="{{ $formattedTime }}" readonly>
         </div>
+
         <div class="attendance__button">
             @if($user->attendance_status === '勤務外')
                 <button class="attendance__button--submit--clock-in"
-                        type="submit" name="action" value="clock_in">
-                    出勤
+                    type="submit" name="action" value="clock_in">
+                出勤
                 </button>
+
             @elseif($user->attendance_status === '出勤中')
                 <button class="attendance__button--submit--clock-out"
-                        type="submit" name="action" value="clock_out">
-                    退勤
+                    type="submit" name="action" value="clock_out">
+                退勤
                 </button>
+
+                <button class="attendance__button--submit--break-in"
+                    type="submit" name="action" value="break_in">
+                休憩入
+                </button>
+
+            @elseif($user->attendance_status === '休憩中')
+                <button class="attendance__button--submit--break-out"
+                    type="submit" name="action" value="break_out">
+                休憩戻
+                </button>
+
             @elseif($user->attendance_status === '退勤済')
                 <p class="attendance__message">お疲れ様でした。</p>
-            @elseif($user->attendance_status === '休憩中')
-                <p class="attendance__message">休憩中です。</p>
             @endif
         </div>
     </form>

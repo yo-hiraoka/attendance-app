@@ -54,83 +54,125 @@ class AttendanceController extends Controller
         ]);
     }
 
-    public function store(Request $request): RedirectResponse
-    {
-        abort_if($request->user()->isAdmin(), 403);
+public function store(Request $request): RedirectResponse
+{
+    abort_if($request->user()->isAdmin(), 403);
 
-        $validated = $request->validate([
-            'action' => ['required', 'in:clock_in,clock_out'],
-        ]);
+    $validated = $request->validate([
+        'action' => [
+            'required',
+            'in:clock_in,clock_out,break_in,break_out',
+        ],
+    ]);
 
-        DB::transaction(function () use ($request, $validated): void {
-            $userId = $request->user()->id;
+    DB::transaction(function () use ($request, $validated): void {
+        $userId = $request->user()->id;
 
-            // 同じユーザーの同時打刻を直列化する。
-            DB::table('users')
-                ->where('id', $userId)
-                ->lockForUpdate()
-                ->first();
+        // 同一ユーザーの打刻操作を直列化する。
+        DB::table('users')
+            ->where('id', $userId)
+            ->lockForUpdate()
+            ->first();
 
-            $now = CarbonImmutable::now('UTC');
-            $timestamp = $now->format('Y-m-d H:i:s');
-            $today = $now->setTimezone('Asia/Tokyo')->toDateString();
+        $now = CarbonImmutable::now('UTC');
+        $timestamp = $now->format('Y-m-d H:i:s');
+        $today = $now->setTimezone('Asia/Tokyo')->toDateString();
 
-            $openAttendance = DB::table('attendances')
+        $openAttendance = DB::table('attendances')
+            ->where('user_id', $userId)
+            ->whereNotNull('clock_in_at')
+            ->whereNull('clock_out_at')
+            ->orderByDesc('clock_in_at')
+            ->first();
+
+        $action = $validated['action'];
+
+        if ($action === 'clock_in') {
+            $alreadyExists = DB::table('attendances')
                 ->where('user_id', $userId)
-                ->whereNotNull('clock_in_at')
-                ->whereNull('clock_out_at')
-                ->orderByDesc('clock_in_at')
-                ->first();
-
-            if ($validated['action'] === 'clock_in') {
-                $alreadyExists = DB::table('attendances')
-                    ->where('user_id', $userId)
-                    ->where('work_date', $today)
-                    ->exists();
-
-                if ($openAttendance || $alreadyExists) {
-                    throw ValidationException::withMessages([
-                        'action' => '本日の出勤はすでに記録されています。',
-                    ]);
-                }
-
-                DB::table('attendances')->insert([
-                    'user_id' => $userId,
-                    'work_date' => $today,
-                    'clock_in_at' => $timestamp,
-                    'clock_out_at' => null,
-                    'created_at' => $timestamp,
-                    'updated_at' => $timestamp,
-                ]);
-
-                return;
-            }
-
-            if (! $openAttendance) {
-                throw ValidationException::withMessages([
-                    'action' => '出勤記録がないため退勤できません。',
-                ]);
-            }
-
-            $onBreak = DB::table('break_times')
-                ->where('attendance_id', $openAttendance->id)
-                ->whereNull('ended_at')
+                ->where('work_date', $today)
                 ->exists();
 
-            if ($onBreak) {
+            if ($openAttendance || $alreadyExists) {
                 throw ValidationException::withMessages([
-                    'action' => '休憩中は退勤できません。',
+                    'action' => '本日の出勤はすでに記録されています。',
                 ]);
             }
 
-            DB::table('attendances')
-                ->where('id', $openAttendance->id)
+            DB::table('attendances')->insert([
+                'user_id' => $userId,
+                'work_date' => $today,
+                'clock_in_at' => $timestamp,
+                'clock_out_at' => null,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+
+            return;
+        }
+
+        if (! $openAttendance) {
+            throw ValidationException::withMessages([
+                'action' => '出勤中の勤怠記録がありません。',
+            ]);
+        }
+
+        $activeBreak = DB::table('break_times')
+            ->where('attendance_id', $openAttendance->id)
+            ->whereNull('ended_at')
+            ->orderByDesc('id')
+            ->first();
+
+        if ($action === 'break_in') {
+            if ($activeBreak) {
+                throw ValidationException::withMessages([
+                    'action' => 'すでに休憩中です。',
+                ]);
+            }
+
+            DB::table('break_times')->insert([
+                'attendance_id' => $openAttendance->id,
+                'started_at' => $timestamp,
+                'ended_at' => null,
+                'created_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+
+            return;
+        }
+
+        if ($action === 'break_out') {
+            if (! $activeBreak) {
+                throw ValidationException::withMessages([
+                    'action' => '休憩中ではないため、休憩終了できません。',
+                ]);
+            }
+
+            DB::table('break_times')
+                ->where('id', $activeBreak->id)
                 ->update([
-                    'clock_out_at' => $timestamp,
+                    'ended_at' => $timestamp,
                     'updated_at' => $timestamp,
                 ]);
-        });
 
-        return redirect()->route('attendance.index');
-    }
+            return;
+        }
+
+        // 残る操作は clock_out。
+        if ($activeBreak) {
+            throw ValidationException::withMessages([
+                'action' => '休憩中は退勤できません。',
+            ]);
+        }
+
+        DB::table('attendances')
+            ->where('id', $openAttendance->id)
+            ->update([
+                'clock_out_at' => $timestamp,
+                'updated_at' => $timestamp,
+            ]);
+    });
+
+    return redirect()->route('attendance.index');
+}
 }
