@@ -98,4 +98,3 @@ class AdminLoginTest extends TestCase
         $this->assertGuest();
     }
 }
-
