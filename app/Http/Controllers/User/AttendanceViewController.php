@@ -81,50 +81,57 @@ class AttendanceViewController extends Controller
         ]);
     }
 
-    public function show(Request $request, int $id): View
-    {
-        abort_if($request->user()->isAdmin(), 403);
+public function show(Request $request, int $id): View
+{
+    abort_if($request->user()->isAdmin(), 403);
 
-        $attendance = Attendance::with([
-            'breaks' => fn ($query) => $query->orderBy('started_at'),
+    $attendance = Attendance::with([
+        'breaks' => fn ($query) => $query->orderBy('started_at'),
+    ])
+        ->where('user_id', $request->user()->id)
+        ->findOrFail($id);
+
+    $pendingApplication = $attendance->correctionRequests()
+        ->where('status', 'pending')
+        ->latest('id')
+        ->first();
+
+    $workDate = CarbonImmutable::parse(
+        $attendance->getRawOriginal('work_date'),
+        'Asia/Tokyo'
+    );
+
+    $breaks = $attendance->breaks
+        ->map(fn ($break): array => [
+            'break_in' => $this->jstTime(
+                $break->getRawOriginal('started_at')
+            ),
+            'break_out' => $this->jstTime(
+                $break->getRawOriginal('ended_at')
+            ),
         ])
-            ->where('user_id', $request->user()->id)
-            ->findOrFail($id);
+        ->all();
 
-        $workDate = CarbonImmutable::parse(
-            $attendance->getRawOriginal('work_date'),
-            'Asia/Tokyo'
-        );
+    $data = [
+        'id' => $attendance->id,
+        'year' => $workDate->format('Y年'),
+        'date' => $workDate->format('n月j日'),
+        'clock_in' => $this->jstTime(
+            $attendance->getRawOriginal('clock_in_at')
+        ),
+        'clock_out' => $this->jstTime(
+            $attendance->getRawOriginal('clock_out_at')
+        ),
+        'breaks' => $breaks,
+        'application' => $pendingApplication,
+        'comment' => $pendingApplication?->reason ?? '',
+    ];
 
-        $breaks = $attendance->breaks
-            ->map(fn ($break): array => [
-                'break_in' => $this->jstTime(
-                    $break->getRawOriginal('started_at')
-                ),
-                'break_out' => $this->jstTime(
-                    $break->getRawOriginal('ended_at')
-                ),
-            ])
-            ->all();
-
-        $data = [
-            'id' => $attendance->id,
-            'year' => $workDate->format('Y年'),
-            'date' => $workDate->format('n月j日'),
-            'clock_in' => $this->jstTime(
-                $attendance->getRawOriginal('clock_in_at')
-            ),
-            'clock_out' => $this->jstTime(
-                $attendance->getRawOriginal('clock_out_at')
-            ),
-            'breaks' => $breaks,
-        ];
-
-        return view('user.user-detail', [
-            'user' => $request->user(),
-            'data' => $data,
-        ]);
-    }
+    return view('user.user-detail', [
+        'user' => $request->user(),
+        'data' => $data,
+    ]);
+}
 
     private function jstTime(?string $utc): string
     {

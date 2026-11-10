@@ -4,6 +4,7 @@ use App\Http\Controllers\Admin\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\User\AttendanceViewController;
+use App\Http\Controllers\User\AttendanceCorrectionController;
 
 Route::get('/', function () {
     return view('user.home');
@@ -33,4 +34,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/attendance/{id}', [AttendanceViewController::class, 'show'])
         ->whereNumber('id')
         ->name('attendance.show');
+
+    Route::post('/attendance/{id}', [AttendanceCorrectionController::class, 'store'])
+        ->whereNumber('id')
+        ->name('attendance.correction.store');
 });
