@@ -3,6 +3,7 @@
 use App\Http\Controllers\Admin\AuthController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\User\AttendanceViewController;
 
 Route::get('/', function () {
     return view('user.home');
@@ -25,4 +26,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::post('/attendance', [AttendanceController::class, 'store'])
         ->name('attendance.store');
+
+    Route::get('/attendance/list', [AttendanceViewController::class, 'index'])
+        ->name('attendance.list');
+
+    Route::get('/attendance/{id}', [AttendanceViewController::class, 'show'])
+        ->whereNumber('id')
+        ->name('attendance.show');
 });
