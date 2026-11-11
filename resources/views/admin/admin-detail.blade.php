@@ -9,7 +9,9 @@
         <div class="detail__header">
             <h1 class="content__header--item">勤怠詳細</h1>
         </div>
-        <form class="form" action="{{ url('/attendance/' . $attendanceRecord['id']) }}" method="post">
+        <form class="form"
+            action="{{ route('admin.attendance.update', ['id' => $attendanceRecord['id']]) }}"
+        method="post">
             @csrf
                 <div class="form__content">
                     <div class="form__group">
@@ -80,14 +82,15 @@
                     <div class="form__group">
                         <label class="form__header">{{ $newBreakIndex === 0 ? '休憩' : '休憩' . ($newBreakIndex + 1) }}</label>
                         <div class="form__input-group">
-                            <input class="form__input" type="text" name="new_break_in[{{ $newBreakIndex }}]" value="">
+                            <input class="form__input" type="text" name="new_break_in[{{ $newBreakIndex }}]" value="{{ old('new_break_in.' . $newBreakIndex, '') }}">
                             <p>〜</p>
-                            <input class="form__input" type="text" name="new_break_out[{{ $newBreakIndex }}]" value="">
+                            <input class="form__input" type="text" name="new_break_out[{{ $newBreakIndex }}]" value="{{ old('new_break_out.' . $newBreakIndex, '') }}">
                         </div>
                     </div>
                     <div class="error-message">
                         <div></div>
                         <div class="error-message__item">
+                            @error('new_break_in')<p>{{ $message }}</p>@enderror
                             @error('new_break_in.' . $newBreakIndex)<p>{{ $message }}</p>@enderror
                             @error('new_break_out.' . $newBreakIndex)<p>{{ $message }}</p>@enderror
                         </div>
@@ -96,7 +99,7 @@
                     <div class="form__group">
                         <label class="form__header" for="comment">備考</label>
                         <div class="form__input-group">
-                            <textarea class="form__textarea" name="comment" id="comment">{{ $attendanceRecord['comment'] }}</textarea>
+                            <textarea class="form__textarea" name="comment" id="comment">{{ old('comment', $attendanceRecord['comment']) }}</textarea>
                         </div>
                     </div>
                     <div class="error-message">
