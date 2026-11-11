@@ -38,7 +38,7 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input())
+            ->post('/attendance/'.$attendance->id, $this->input())
             ->assertRedirect(route('attendance.show', $attendance->id));
 
         $this->assertDatabaseHas('stamp_correction_requests', [
@@ -58,7 +58,7 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input())
+            ->post('/attendance/'.$attendance->id, $this->input())
             ->assertRedirect();
 
         $this->assertDatabaseHas('attendances', [
@@ -67,7 +67,7 @@ class AttendanceCorrectionTest extends TestCase
             'clock_out_at' => '2026-11-09 09:00:00',
         ]);
 
-        $this->get('/attendance/' . $attendance->id)
+        $this->get('/attendance/'.$attendance->id)
             ->assertOk()
             ->assertSee('承認待ちのため修正できません');
     }
@@ -78,11 +78,13 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input())
+            ->post('/attendance/'.$attendance->id, $this->input())
             ->assertRedirect();
 
-        $this->post('/attendance/' . $attendance->id, $this->input())
-            ->assertSessionHasErrors('comment');
+        $this->post('/attendance/'.$attendance->id, $this->input())
+            ->assertSessionHasErrors([
+                'comment' => 'この勤怠には承認待ちの申請があります。',
+            ]);
 
         $this->assertDatabaseCount('stamp_correction_requests', 1);
     }
@@ -94,7 +96,7 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($other);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input())
+            ->post('/attendance/'.$attendance->id, $this->input())
             ->assertNotFound();
 
         $this->assertDatabaseCount('stamp_correction_requests', 0);
@@ -105,7 +107,7 @@ class AttendanceCorrectionTest extends TestCase
         $user = User::factory()->create();
         $attendance = $this->attendanceFor($user);
 
-        $this->post('/attendance/' . $attendance->id, $this->input())
+        $this->post('/attendance/'.$attendance->id, $this->input())
             ->assertRedirect(route('login'));
     }
 
@@ -119,7 +121,7 @@ class AttendanceCorrectionTest extends TestCase
         );
 
         $this->actingAs($admin)
-            ->post('/attendance/' . $attendance->id, $this->input())
+            ->post('/attendance/'.$attendance->id, $this->input())
             ->assertForbidden();
     }
 
@@ -129,7 +131,7 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input([
+            ->post('/attendance/'.$attendance->id, $this->input([
                 'comment' => '',
             ]))
             ->assertSessionHasErrors('comment');
@@ -143,11 +145,11 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input([
+            ->post('/attendance/'.$attendance->id, $this->input([
                 'new_clock_in' => '09:00',
                 'new_clock_out' => '09:00',
             ]))
-            ->assertSessionHasErrors('new_clock_out');
+            ->assertSessionHasErrors('new_clock_in');
     }
 
     public function test_break_outside_working_hours_is_rejected(): void
@@ -156,7 +158,7 @@ class AttendanceCorrectionTest extends TestCase
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input([
+            ->post('/attendance/'.$attendance->id, $this->input([
                 'new_break_in' => ['08:00'],
                 'new_break_out' => ['08:30'],
             ]))
@@ -165,30 +167,52 @@ class AttendanceCorrectionTest extends TestCase
         $this->assertDatabaseCount('stamp_correction_requests', 0);
     }
 
-    public function test_overnight_correction_is_saved_in_utc(): void
+    public function test_clock_in_after_clock_out_is_rejected(): void
     {
         $user = User::factory()->create();
         $attendance = $this->attendanceFor($user);
 
         $this->actingAs($user)
-            ->post('/attendance/' . $attendance->id, $this->input([
-                'new_clock_in' => '23:00',
-                'new_clock_out' => '02:00',
-                'new_break_in' => ['23:50'],
-                'new_break_out' => ['00:10'],
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'new_clock_in' => '18:00',
+                'new_clock_out' => '09:00',
+                'new_break_in' => [],
+                'new_break_out' => [],
             ]))
-            ->assertRedirect();
+            ->assertSessionHasErrors([
+                'new_clock_in' => '出勤時間が不適切な値です',
+            ]);
 
-        $this->assertDatabaseHas('stamp_correction_requests', [
-            'attendance_id' => $attendance->id,
-            'requested_clock_in_at' => '2026-11-09 14:00:00',
-            'requested_clock_out_at' => '2026-11-09 17:00:00',
-            'status' => 'pending',
-        ]);
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
 
-        $this->assertDatabaseHas('correction_request_breaks', [
-            'started_at' => '2026-11-09 14:50:00',
-            'ended_at' => '2026-11-09 15:10:00',
-        ]);
+    public function test_break_start_after_clock_out_has_expected_message(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor($user);
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'new_break_in' => ['19:00'],
+                'new_break_out' => ['19:30'],
+            ]))
+            ->assertSessionHasErrors([
+                'new_break_in.0' => '休憩時間が不適切な値です',
+            ]);
+    }
+
+    public function test_break_end_after_clock_out_has_expected_message(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor($user);
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'new_break_in' => ['17:30'],
+                'new_break_out' => ['19:00'],
+            ]))
+            ->assertSessionHasErrors([
+                'new_break_out.0' => '休憩時間もしくは退勤時間が不適切な値です',
+            ]);
     }
 }

@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Attendance;
 use App\Models\BreakTime;
 use App\Models\User;
-use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -101,7 +100,7 @@ class UserAttendanceViewTest extends TestCase
             ->assertSee('18:00')
             ->assertSee('0:45')
             ->assertSee('8:15')
-            ->assertSee('/attendance/' . $attendance->id);
+            ->assertSee('/attendance/'.$attendance->id);
     }
 
     public function test_detail_displays_break_times_in_jst(): void
@@ -122,7 +121,7 @@ class UserAttendanceViewTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/attendance/' . $attendance->id)
+            ->get('/attendance/'.$attendance->id)
             ->assertOk()
             ->assertSee('勤怠詳細')
             ->assertSee('12:00')
@@ -141,7 +140,7 @@ class UserAttendanceViewTest extends TestCase
         ]);
 
         $this->actingAs($user)
-            ->get('/attendance/' . $attendance->id)
+            ->get('/attendance/'.$attendance->id)
             ->assertNotFound();
     }
 

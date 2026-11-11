@@ -28,8 +28,9 @@ class AttendanceCorrectionController extends Controller
             'new_break_out' => ['sometimes', 'array'],
             'new_break_out.*' => ['nullable', 'date_format:H:i'],
             'comment' => ['required', 'string'],
+        ], [
+            'comment.required' => '備考を記入してください',
         ]);
-
         // 日付は元の勤務日を使用する。利用者による日付変更は許可しない。
         $workDate = CarbonImmutable::parse(
             $attendance->getRawOriginal('work_date'),
@@ -37,23 +38,19 @@ class AttendanceCorrectionController extends Controller
         )->toDateString();
 
         $clockIn = CarbonImmutable::parse(
-            $workDate . ' ' . $validated['new_clock_in'],
+            $workDate.' '.$validated['new_clock_in'],
             'Asia/Tokyo'
         );
 
         $clockOut = CarbonImmutable::parse(
-            $workDate . ' ' . $validated['new_clock_out'],
+            $workDate.' '.$validated['new_clock_out'],
             'Asia/Tokyo'
         );
 
-        if ($clockOut->equalTo($clockIn)) {
+        if ($clockOut->lessThanOrEqualTo($clockIn)) {
             throw ValidationException::withMessages([
-                'new_clock_out' => '出勤時刻と退勤時刻を確認してください。',
+                'new_clock_in' => '出勤時間が不適切な値です',
             ]);
-        }
-
-        if ($clockOut->lessThan($clockIn)) {
-            $clockOut = $clockOut->addDay();
         }
 
         $breakIns = $validated['new_break_in'] ?? [];
@@ -77,48 +74,45 @@ class AttendanceCorrectionController extends Controller
 
             if ($in === null || $out === null) {
                 throw ValidationException::withMessages([
-                    'new_break_in.' . $index =>
-                        '休憩の開始時刻と終了時刻を両方入力してください。',
+                    'new_break_in.'.$index => '休憩の開始時刻と終了時刻を両方入力してください。',
                 ]);
             }
 
-            $found = null;
+            $breakIn = CarbonImmutable::parse(
+                $workDate.' '.$in,
+                'Asia/Tokyo'
+            );
 
-            // 出勤日と翌日の両方を試し、勤務時間内の休憩を特定する。
-            foreach ([0, 1] as $startOffset) {
-                $breakIn = CarbonImmutable::parse(
-                    $workDate . ' ' . $in,
-                    'Asia/Tokyo'
-                )->addDays($startOffset);
+            $breakOut = CarbonImmutable::parse(
+                $workDate.' '.$out,
+                'Asia/Tokyo'
+            );
 
-                foreach ([0, 1] as $endOffset) {
-                    $breakOut = CarbonImmutable::parse(
-                        $workDate . ' ' . $out,
-                        'Asia/Tokyo'
-                    )->addDays($endOffset);
-
-                    if (
-                        $breakIn->greaterThanOrEqualTo($clockIn)
-                        && $breakOut->greaterThan($breakIn)
-                        && $breakOut->lessThanOrEqualTo($clockOut)
-                    ) {
-                        $found = [
-                            'start' => $breakIn,
-                            'end' => $breakOut,
-                        ];
-                        break 2;
-                    }
-                }
-            }
-
-            if ($found === null) {
+            if (
+                $breakIn->lessThan($clockIn)
+                || $breakIn->greaterThanOrEqualTo($clockOut)
+            ) {
                 throw ValidationException::withMessages([
-                    'new_break_in.' . $index =>
-                        '休憩時間が勤務時間内になるよう入力してください。',
+                    'new_break_in.'.$index => '休憩時間が不適切な値です',
                 ]);
             }
 
-            $breaks[] = $found;
+            if ($breakOut->greaterThan($clockOut)) {
+                throw ValidationException::withMessages([
+                    'new_break_out.'.$index => '休憩時間もしくは退勤時間が不適切な値です',
+                ]);
+            }
+
+            if ($breakOut->lessThanOrEqualTo($breakIn)) {
+                throw ValidationException::withMessages([
+                    'new_break_out.'.$index => '休憩時間が不適切な値です',
+                ]);
+            }
+
+            $breaks[] = [
+                'start' => $breakIn,
+                'end' => $breakOut,
+            ];
         }
 
         usort(

@@ -118,6 +118,8 @@ class AttendanceController extends Controller
             'new_break_out' => ['sometimes', 'array'],
             'new_break_out.*' => ['nullable', 'date_format:H:i'],
             'comment' => ['required', 'string'],
+        ], [
+            'comment.required' => '備考を記入してください',
         ]);
 
         DB::transaction(function () use ($id, $validated): void {
@@ -163,14 +165,10 @@ class AttendanceController extends Controller
                 'Asia/Tokyo'
             );
 
-            if ($clockOut->equalTo($clockIn)) {
+            if ($clockOut->lessThanOrEqualTo($clockIn)) {
                 throw ValidationException::withMessages([
-                    'new_clock_out' => '出勤・退勤時刻を確認してください。',
+                    'new_clock_in' => '出勤時間もしくは退勤時間が不適切な値です',
                 ]);
-            }
-
-            if ($clockOut->lessThan($clockIn)) {
-                $clockOut = $clockOut->addDay();
             }
 
             $breakIns = $validated['new_break_in'] ?? [];
@@ -194,50 +192,48 @@ class AttendanceController extends Controller
 
                 if ($in === null || $out === null) {
                     throw ValidationException::withMessages([
-                        'new_break_in.'.$index =>
-                            '休憩の開始と終了を両方入力してください。',
+                        'new_break_in.'.$index => '休憩の開始と終了を両方入力してください。',
                     ]);
                 }
 
-                $found = null;
+                $start = CarbonImmutable::parse(
+                    $workDate.' '.$in,
+                    'Asia/Tokyo'
+                );
 
-                foreach ([0, 1] as $startOffset) {
-                    $start = CarbonImmutable::parse(
-                        $workDate.' '.$in,
-                        'Asia/Tokyo'
-                    )->addDays($startOffset);
+                $end = CarbonImmutable::parse(
+                    $workDate.' '.$out,
+                    'Asia/Tokyo'
+                );
 
-                    foreach ([0, 1] as $endOffset) {
-                        $end = CarbonImmutable::parse(
-                            $workDate.' '.$out,
-                            'Asia/Tokyo'
-                        )->addDays($endOffset);
-
-                        if (
-                            $start->greaterThanOrEqualTo($clockIn)
-                            && $end->greaterThan($start)
-                            && $end->lessThanOrEqualTo($clockOut)
-                        ) {
-                            $found = [$start, $end];
-                            break 2;
-                        }
-                    }
-                }
-
-                if ($found === null) {
+                if (
+                    $start->lessThan($clockIn)
+                    || $start->greaterThanOrEqualTo($clockOut)
+                ) {
                     throw ValidationException::withMessages([
-                        'new_break_in.'.$index =>
-                            '休憩は勤務時間内に入力してください。',
+                        'new_break_in.'.$index => '休憩時間が不適切な値です',
                     ]);
                 }
 
-                $breaks[] = $found;
+                if ($end->greaterThan($clockOut)) {
+                    throw ValidationException::withMessages([
+                        'new_break_out.'.$index => '休憩時間もしくは退勤時間が不適切な値です',
+                    ]);
+                }
+
+                if ($end->lessThanOrEqualTo($start)) {
+                    throw ValidationException::withMessages([
+                        'new_break_out.'.$index => '休憩時間が不適切な値です',
+                    ]);
+                }
+
+                $breaks[] = [$start, $end];
+
             }
 
             usort(
                 $breaks,
-                fn ($a, $b) =>
-                    $a[0]->getTimestamp() <=> $b[0]->getTimestamp()
+                fn ($a, $b) => $a[0]->getTimestamp() <=> $b[0]->getTimestamp()
             );
 
             for ($i = 1; $i < count($breaks); $i++) {
