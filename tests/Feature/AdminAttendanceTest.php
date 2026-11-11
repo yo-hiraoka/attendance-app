@@ -182,4 +182,92 @@ class AdminAttendanceTest extends TestCase
             ->assertSee('12:00')
             ->assertSee('12:30');
     }
+
+    public function test_invalid_clock_order_has_expected_message(): void
+    {
+        $admin = $this->admin();
+        $attendance = $this->attendance(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post('/admin/attendance/'.$attendance->id, $this->input([
+                'new_clock_in' => '18:00',
+                'new_clock_out' => '09:00',
+                'new_break_in' => [],
+                'new_break_out' => [],
+            ]))
+            ->assertSessionHasErrors([
+                'new_clock_in' => '出勤時間もしくは退勤時間が不適切な値です',
+            ]);
+    }
+
+    public function test_break_start_after_clock_out_has_expected_message(): void
+    {
+        $admin = $this->admin();
+        $attendance = $this->attendance(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post('/admin/attendance/'.$attendance->id, $this->input([
+                'new_break_in' => ['19:00'],
+                'new_break_out' => ['19:30'],
+            ]))
+            ->assertSessionHasErrors([
+                'new_break_in.0' => '休憩時間が不適切な値です',
+            ]);
+    }
+
+    public function test_break_end_after_clock_out_has_expected_message(): void
+    {
+        $admin = $this->admin();
+        $attendance = $this->attendance(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post('/admin/attendance/'.$attendance->id, $this->input([
+                'new_break_in' => ['17:30'],
+                'new_break_out' => ['19:00'],
+            ]))
+            ->assertSessionHasErrors([
+                'new_break_out.0' => '休憩時間もしくは退勤時間が不適切な値です',
+            ]);
+    }
+
+    public function test_empty_comment_has_expected_message(): void
+    {
+        $admin = $this->admin();
+        $attendance = $this->attendance(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post('/admin/attendance/'.$attendance->id, $this->input([
+                'comment' => '',
+            ]))
+            ->assertSessionHasErrors([
+                'comment' => '備考を記入してください',
+            ]);
+    }
+
+    public function test_invalid_input_preserves_admin_form_values(): void
+    {
+        $admin = $this->admin();
+        $attendance = $this->attendance(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->from(route('admin.attendance.show', $attendance->id))
+            ->followingRedirects()
+            ->post(
+                route('admin.attendance.update', $attendance->id),
+                $this->input([
+                    'new_clock_in' => '18:00',
+                    'new_clock_out' => '09:00',
+                    'new_break_in' => ['12:15'],
+                    'new_break_out' => ['12:45'],
+                    'comment' => '入力値保持の確認',
+                ])
+            )
+            ->assertOk()
+            ->assertSee('value="18:00"', false)
+            ->assertSee('value="09:00"', false)
+            ->assertSee('value="12:15"', false)
+            ->assertSee('value="12:45"', false)
+            ->assertSee('入力値保持の確認')
+            ->assertSee('出勤時間もしくは退勤時間が不適切な値です');
+    }
 }

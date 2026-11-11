@@ -6,19 +6,19 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Actions\Fortify\UpdateUserPassword;
 use App\Actions\Fortify\UpdateUserProfileInformation;
+use App\Http\Responses\LogoutResponse;
+use App\Http\Responses\RegistrationResponse;
+use App\Models\User;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Str;
 use Laravel\Fortify\Actions\RedirectIfTwoFactorAuthenticatable;
-use Laravel\Fortify\Fortify;
-use App\Http\Responses\RegistrationResponse;
-use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
-use App\Http\Responses\LogoutResponse;
 use Laravel\Fortify\Contracts\LogoutResponse as LogoutResponseContract;
-use App\Models\User;
-use Illuminate\Support\Facades\Hash;
+use Laravel\Fortify\Contracts\RegisterResponse as RegisterResponseContract;
+use Laravel\Fortify\Fortify;
 
 class FortifyServiceProvider extends ServiceProvider
 {
@@ -47,22 +47,28 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::updateUserPasswordsUsing(UpdateUserPassword::class);
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::redirectUserForTwoFactorAuthenticationUsing(RedirectIfTwoFactorAuthenticatable::class);
-        Fortify::registerView(function () {return view('user.register');});
-        Fortify::loginView(function () {return view('user.user-login');});
+        Fortify::registerView(function () {
+            return view('user.register');
+        });
+        Fortify::loginView(function () {
+            return view('user.user-login');
+        });
         Fortify::authenticateUsing(function (Request $request) {
             $user = User::where('email', $request->input('email'))->first();
-                if (
-                    $user &&
-                    ! $user->isAdmin() &&
-                    Hash::check($request->input('password', ''), $user->password)
-                ) {
+            if (
+                $user &&
+                ! $user->isAdmin() &&
+                Hash::check($request->input('password', ''), $user->password)
+            ) {
                 return $user;
-                    }
+            }
 
-                    return null;
-                    });
+            return null;
+        });
 
-        Fortify::verifyEmailView(function () {return view('auth.verify-email');});
+        Fortify::verifyEmailView(function () {
+            return view('auth.verify-email');
+        });
         RateLimiter::for('login', function (Request $request) {
             $throttleKey = Str::transliterate(Str::lower($request->input(Fortify::username())).'|'.$request->ip());
 

@@ -1,14 +1,14 @@
 <?php
 
-use App\Http\Controllers\Admin\AuthController;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AttendanceController;
-use App\Http\Controllers\User\AttendanceViewController;
-use App\Http\Controllers\User\AttendanceCorrectionController;
-use App\Http\Controllers\User\CorrectionRequestListController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
-use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\AuthController;
 use App\Http\Controllers\Admin\CorrectionRequestController as AdminCorrectionRequestController;
+use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\AttendanceController;
+use App\Http\Controllers\User\AttendanceCorrectionController;
+use App\Http\Controllers\User\AttendanceViewController;
+use App\Http\Controllers\User\CorrectionRequestListController;
+use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
     return view('user.home');
@@ -62,18 +62,18 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         ->name('admin.attendance.update');
 
     Route::get('/staff/list', [StaffController::class, 'index'])
-    ->name('admin.staff.list');
+        ->name('admin.staff.list');
 
     Route::get('/attendance/staff/{id}', [StaffController::class, 'attendance'])
         ->whereNumber('id')
         ->name('admin.staff.attendance');
 
-    Route::get('/stamp_correction_request/list',[AdminCorrectionRequestController::class, 'index'])
+    Route::get('/stamp_correction_request/list', [AdminCorrectionRequestController::class, 'index'])
         ->name('admin.correction.list');
 
-    Route::get('/stamp_correction_request/approve/{id}',[AdminCorrectionRequestController::class, 'show'])
+    Route::get('/stamp_correction_request/approve/{id}', [AdminCorrectionRequestController::class, 'show'])
         ->whereNumber('id')->name('admin.correction.show');
 
-    Route::post('/stamp_correction_request/approve/{id}',[AdminCorrectionRequestController::class, 'approve'])
+    Route::post('/stamp_correction_request/approve/{id}', [AdminCorrectionRequestController::class, 'approve'])
         ->whereNumber('id')->name('admin.correction.approve');
 });

@@ -13,24 +13,24 @@ class CorrectionRequestListTest extends TestCase
 {
     use RefreshDatabase;
 
-private function createCorrectionRequest(
-    User $user,
-    string $status,
-    string $reason,
-    string $workDate = '2026-11-09'
-): StampCorrectionRequest {
-    $attendance = Attendance::factory()->create([
-        'user_id' => $user->id,
-        'work_date' => $workDate,
-    ]);
+    private function createCorrectionRequest(
+        User $user,
+        string $status,
+        string $reason,
+        string $workDate = '2026-11-09'
+    ): StampCorrectionRequest {
+        $attendance = Attendance::factory()->create([
+            'user_id' => $user->id,
+            'work_date' => $workDate,
+        ]);
 
-    return StampCorrectionRequest::factory()->create([
-        'attendance_id' => $attendance->id,
-        'user_id' => $user->id,
-        'status' => $status,
-        'reason' => $reason,
-    ]);
-}
+        return StampCorrectionRequest::factory()->create([
+            'attendance_id' => $attendance->id,
+            'user_id' => $user->id,
+            'status' => $status,
+            'reason' => $reason,
+        ]);
+    }
 
     public function test_guest_cannot_view_application_list(): void
     {
@@ -174,7 +174,7 @@ private function createCorrectionRequest(
                 ])
             );
 
-        $this->get('/attendance/' . $application->attendance_id)
+        $this->get('/attendance/'.$application->attendance_id)
             ->assertOk()
             ->assertSee('勤怠詳細')
             ->assertSee('承認待ちのため修正できません');
