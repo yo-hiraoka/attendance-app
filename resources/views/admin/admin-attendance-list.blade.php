@@ -35,32 +35,32 @@
                 <p class="table__header--item">詳細</p>
             </th>
         </tr>
-        @foreach ($users as $user)
-        @php
-            $attendance = $attendanceRecords->where('user_id', $user->id)->first();
-        @endphp
-        @if ($attendance)
-        <tr class="table__row">
-            <td class="table__description">
-                <p class="table__description--item">{{ $user->name }}</p>
-            </td>
-            <td class="table__description">
-                <p class="table__description--item">{{ $attendance->clock_in ? Carbon\Carbon::parse($attendance->clock_in)->format('H:i') : '' }}</p>
-            </td>
-            <td class="table__description">
-                <p class="table__description--item">{{ $attendance->clock_out ? Carbon\Carbon::parse($attendance->clock_out)->format('H:i') : '' }}</p>
-            </td>
-            <td class="table__description">
-                <p class="table__description--item">{{ $attendance->total_break_time ? Carbon\Carbon::parse($attendance->total_break_time)->format('G:i') : '' }}</p>
-            </td>
-            <td class="table__description">
-                <p class="table__description--item">{{ $attendance->total_time ? Carbon\Carbon::parse($attendance->total_time)->format('G:i') : '' }}</p>
-            </td>
-            <td class="table__description">
-                <a class="table__item--detail-link" href="{{ url('/attendance/' . $attendance['id']) }}">詳細</a>
-            </td>
-        </tr>
-        @endif
+    @foreach ($attendanceRecords as $attendance)
+            <tr class="table__row">
+                <td class="table__description">
+                    <p class="table__description--item">{{ $attendance['name'] }}</p>
+                </td>
+                <td class="table__description">
+                    <p class="table__description--item">{{ $attendance['clock_in'] }}</p>
+                </td>
+                <td class="table__description">
+                    <p class="table__description--item">{{ $attendance['clock_out'] }}</p>
+                </td>
+                <td class="table__description">
+                    <p class="table__description--item">
+                        {{ $attendance['total_break_time'] }}
+                    </p>
+                </td>
+                <td class="table__description">
+                    <p class="table__description--item">{{ $attendance['total_time'] }}</p>
+                </td>
+                <td class="table__description">
+                    <a class="table__item--detail-link"
+                        href="{{ route('admin.attendance.show', ['id' => $attendance['id']]) }}">
+                        詳細
+                    </a>
+                </td>
+            </tr>
         @endforeach
     </table>
 </div>
