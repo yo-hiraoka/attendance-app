@@ -40,8 +40,8 @@ class AuthController extends Controller
         return redirect()->route('admin.home');
     }
 
-    public function home(): View
+    public function home(): RedirectResponse
     {
-        return view('admin.home');
+        return redirect()->route('admin.attendance.list');
     }
 }

@@ -11,7 +11,7 @@ use App\Http\Controllers\User\CorrectionRequestListController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    return view('user.home');
+    return redirect()->route('attendance.index');
 })->middleware(['auth', 'verified'])->name('home');
 
 Route::get('/admin/login', [AuthController::class, 'showLogin'])

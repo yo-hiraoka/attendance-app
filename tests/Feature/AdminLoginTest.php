@@ -88,9 +88,7 @@ class AdminLoginTest extends TestCase
 
         $this->actingAs($admin)
             ->get('/admin')
-            ->assertOk()
-            ->assertSee('管理者ホーム')
-            ->assertSee('ログアウト');
+            ->assertRedirect(route('admin.attendance.list'));
 
         $this->post('/logout')
             ->assertRedirect(route('login'));
