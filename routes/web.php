@@ -8,6 +8,7 @@ use App\Http\Controllers\User\AttendanceCorrectionController;
 use App\Http\Controllers\User\CorrectionRequestListController;
 use App\Http\Controllers\Admin\AttendanceController as AdminAttendanceController;
 use App\Http\Controllers\Admin\StaffController;
+use App\Http\Controllers\Admin\CorrectionRequestController as AdminCorrectionRequestController;
 
 Route::get('/', function () {
     return view('user.home');
@@ -66,4 +67,13 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
     Route::get('/attendance/staff/{id}', [StaffController::class, 'attendance'])
         ->whereNumber('id')
         ->name('admin.staff.attendance');
+
+    Route::get('/stamp_correction_request/list',[AdminCorrectionRequestController::class, 'index'])
+        ->name('admin.correction.list');
+
+    Route::get('/stamp_correction_request/approve/{id}',[AdminCorrectionRequestController::class, 'show'])
+        ->whereNumber('id')->name('admin.correction.show');
+
+    Route::post('/stamp_correction_request/approve/{id}',[AdminCorrectionRequestController::class, 'approve'])
+        ->whereNumber('id')->name('admin.correction.approve');
 });
