@@ -30,7 +30,7 @@
                 <p class="table__description--item">{{ $user->email }}</p>
             </td>
             <td class="table__description">
-                <a class="table__item--detail-link" href="{{ url('/admin/attendance/staff/' . $user['id']) }}">詳細</a>
+                <a class="table__item--detail-link"href="{{ route('admin.staff.attendance', ['id' => $user->id]) }}">詳細</a>
             </td>
         </tr>
         @endforeach
