@@ -103,8 +103,6 @@ class UserLoginTest extends TestCase
 
         $response = $this->get('/');
 
-        $response->assertOk();
-        $response->assertSee($user->name);
-        $response->assertSee('ログアウト');
+        $response->assertRedirect(route('attendance.index'));
     }
 }

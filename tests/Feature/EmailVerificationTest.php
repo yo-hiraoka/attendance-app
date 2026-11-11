@@ -46,8 +46,7 @@ class EmailVerificationTest extends TestCase
 
         $this->actingAs($user)
             ->get('/')
-            ->assertOk()
-            ->assertSee($user->name);
+            ->assertRedirect(route('attendance.index'));
     }
 
     public function test_user_can_resend_verification_email(): void
