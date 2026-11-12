@@ -133,4 +133,6 @@
     color: #FFF;
     font-size: 16px;
     padding: 5px 15px;
+    display: inline-block;
+    text-decoration: none;
 }

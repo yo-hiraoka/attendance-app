@@ -68,6 +68,10 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
         ->whereNumber('id')
         ->name('admin.staff.attendance');
 
+    Route::get('/attendance/staff/{id}/export', [StaffController::class, 'export'])
+        ->whereNumber('id')
+        ->name('admin.staff.export');
+
     Route::get('/stamp_correction_request/list', [AdminCorrectionRequestController::class, 'index'])
         ->name('admin.correction.list');
 
