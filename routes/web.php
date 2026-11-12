@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CorrectionRequestController as AdminCorrectionReq
 use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\AttendanceController;
 use App\Http\Controllers\User\AttendanceCorrectionController;
+use App\Http\Controllers\User\AttendanceReportController;
 use App\Http\Controllers\User\AttendanceViewController;
 use App\Http\Controllers\User\CorrectionRequestListController;
 use Illuminate\Support\Facades\Route;
@@ -34,6 +35,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     Route::get('/attendance/list', [AttendanceViewController::class, 'index'])
         ->name('attendance.list');
+
+    Route::get('/attendance/report', [AttendanceReportController::class, 'index'])
+        ->name('attendance.report');
 
     Route::get('/attendance/{id}', [AttendanceViewController::class, 'show'])
         ->whereNumber('id')
