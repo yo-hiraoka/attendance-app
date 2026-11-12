@@ -60,5 +60,14 @@
         </tr>
         @endforeach
     </table>
+
+    <div class="csv-button">
+        <a href="{{ route('admin.staff.export', [
+            'id' => $user->id,
+            'date' => $date->format('Y-m'),
+        ]) }}"class="csv-button__submit">
+            CSV出力
+        </a>
+    </div>
 </div>
 @endsection
