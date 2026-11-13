@@ -95,6 +95,49 @@ CSV出力は管理者専用機能です。
 一般ユーザー本人の勤怠情報のみを対象とし、
 未ログインユーザーや管理者はアクセスできません。
 
+### 公開勤怠API v1（応用機能 FN057〜FN068）
+
+勤怠情報をJSON形式で取得・登録・更新・削除するAPIです。
+
+| HTTP | URL | 認証 |
+|---|---|---|
+| GET | `/api/v1/attendance-records` | 不要 |
+| GET | `/api/v1/attendance-records/{attendanceRecord}` | 不要 |
+| POST | `/api/v1/attendance-records` | Sanctum |
+| PUT | `/api/v1/attendance-records/{attendanceRecord}` | Sanctum |
+| PATCH | `/api/v1/attendance-records/{attendanceRecord}` | Sanctum |
+| DELETE | `/api/v1/attendance-records/{attendanceRecord}` | Sanctum |
+
+一覧取得では次の絞り込みに対応しています。
+
+- `user_id`：ユーザーID
+- `date`：勤務日（YYYY-MM-DD）
+- `month`：対象月（YYYY-MM）
+- `page`：ページ番号
+- `per_page`：1ページあたりの件数（既定20、最大100）
+
+書き込みAPIでは認証が必要です。
+更新・削除は本人または管理者のみ実行できます。
+
+主なHTTPステータスコード：
+
+- 200：取得・更新成功
+- 201：新規登録成功
+- 204：削除成功
+- 401：未認証
+- 403：操作権限なし
+- 404：対象データなし
+- 422：入力検証エラー
+
+日時はUTCで保存し、日本時間で入出力します。
+
+#### 既知の制限事項
+
+- 夜勤の翌日退勤時刻をAPI入力から新たに指定する機能は未対応です。
+- 出退勤時刻を変更した場合、既存休憩が新しい勤務時間内に収まるかの検証は未対応です。
+- 勤務日変更では関連する修正申請の日時も移動します。承認済み申請を含む業務上の取り扱いには追加確認が必要です。
+- GET APIは仕様に従って認証不要です。個人の勤怠情報を返すため、実データを含む環境を外部公開しないでください。
+
 ## 環境構築
 
 ### 必要な環境
@@ -188,8 +231,11 @@ DB_PASSWORD=password
 ```bash
 ./vendor/bin/sail npm run dev
 ```
+### 8. ER図
 
-### 8. ブラウザでアクセス
+![勤怠管理アプリのER図](docs/er-diagram.png)
+
+### 9. ブラウザでアクセス
 
 | サービス | URL |
 |---|---|
@@ -254,12 +300,11 @@ DB_PASSWORD=password
 git diff --check
 ```
 
-開発時の確認実績：
+開発時の確認実績（Issue #43完了時）：
 
-- PHPUnit：124件PASS（471 assertions）
-- Laravel Pint：100ファイルPASS
-
-※ 上記はIssue #17完了時の結果です。
+- PHPUnit：179件PASS（638 assertions）
+- API専用テスト：29件PASS（112 assertions）
+- Laravel Pint：112ファイルPASS
 
 ## データベース設計
 
@@ -280,30 +325,32 @@ Laravel標準の管理用テーブルも使用しています。
 - 日時は原則UTCで保存し、表示時に日本時間へ変換します。
 - 勤怠修正申請は管理者の承認後に勤怠記録へ反映されます。
 - 管理者アカウントは一般ユーザーの会員登録画面から作成できません。
-- CSV出力などの一部応用機能は未実装です。
 - 本番環境に公開する場合は、依存パッケージのセキュリティ確認と環境設定の見直しが必要です。
 
 ## セキュリティ・運用上の注意
 
-本アプリケーションはCOACHTECHの学習課題として、
-Laravel 10を使用して開発しています。
+2026年11月14日時点のローカル監査結果：
+
+- Laravel Framework：10.50.4
+- Composer：laravel/framework に関するセキュリティ勧告5件
+  - Low：2件
+  - Medium：1件
+  - High：1件
+  - 深刻度未記載：1件
+- npm audit --omit=dev：脆弱性0件
+
+Composerの5件には、同一のGitHub Advisoryを参照する
+重複した勧告が含まれています。
 
 Laravel 10は公式セキュリティサポートが終了しています。
 
-2026年11月11日時点の監査結果：
+本プロジェクトは学習課題としてLaravel 10を使用しており、
+今回の作業では依存パッケージを更新していません。
 
-- Composer：laravel/framework に関するセキュリティ勧告4件
-- npm audit --omit=dev：脆弱性0件
+実データを扱う本番環境への公開前には、以下の対応が必要です。
 
-本プロジェクトでは基本機能の実装・テストを優先し、
-Laravelのメジャーバージョンアップは実施していません。
-
-本番環境へ公開する場合は、サポート対象のLaravelへ
-アップグレードし、依存パッケージの監査、全テスト、
-セキュリティ設定の再確認を行う必要があります。
-
-本番環境では APP_ENV=production、
-APP_DEBUG=false を設定してください。
-
-また、実際の認証情報、APP_KEY、メール設定等の
-秘密情報をGitHubへ公開しないでください。
+- サポート対象のLaravelへのアップグレード
+- Composerとnpmのセキュリティ監査
+- 全機能の回帰テスト
+- APIの認証・公開範囲の見直し
+- 本番環境の設定と秘密情報の保護
