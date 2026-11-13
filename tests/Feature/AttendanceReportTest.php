@@ -277,4 +277,34 @@ class AttendanceReportTest extends TestCase
                     && $anomalies['early'] === 0
             );
     }
+
+    public function test_report_uses_provided_template(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/attendance/report')
+            ->assertOk()
+            ->assertViewIs('reports.index')
+            ->assertSee('基本サマリー')
+            ->assertSee('月次推移')
+            ->assertSee('今月の異常検知');
+    }
+
+    public function test_monthly_trend_is_displayed_newest_first(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get('/attendance/report')
+            ->assertOk()
+            ->assertViewHas(
+                'monthlyTrend',
+                function ($trend): bool {
+                    return count($trend) === 6
+                        && $trend[0]['month'] === '2026-11'
+                        && $trend[5]['month'] === '2026-06';
+                }
+            );
+    }
 }
