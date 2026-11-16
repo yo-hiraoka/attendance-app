@@ -280,6 +280,29 @@ DB_PASSWORD=password
 
 ※ デモデータ投入は必須ではありません。既存データのある環境では実行前に内容を確認してください。
 
+### COACHTECH提出・採点用ダミーデータ
+
+採点用のアカウントと勤怠記録を作成する場合は、以下のコマンドを実行します。
+
+```bash
+./vendor/bin/sail artisan db:seed --class=SubmissionSampleSeeder
+```
+
+| 種類 | メールアドレス | パスワード |
+|---|---|---|
+| 一般ユーザー1 | user1@example.com | password |
+| 一般ユーザー2 | user2@example.com | password |
+| 管理者 | user3@example.com | password |
+
+一般ユーザーは `/login`、管理者は `/admin/login` からログインしてください。
+
+- 3アカウントはメール認証済みで作成されます。
+- 一般ユーザー1には、過去5か月と当月の勤怠データを作成します。
+- データの日付はSeeder実行時の月を基準とします。
+- 指定されたユーザーが既に存在する場合、既存データを上書きせず投入を中止します。
+- 採点用の共通パスワードを使用するため、本番環境では実行しないでください。
+- データは自動投入されません。必要な場合にのみ上記コマンドを実行してください。
+
 ## テスト
 
 ### PHPUnit
@@ -300,11 +323,11 @@ DB_PASSWORD=password
 git diff --check
 ```
 
-開発時の確認実績（Issue #43完了時）：
+開発時の確認実績（Issue #49・採点用Seeder追加時）：
 
-- PHPUnit：179件PASS（638 assertions）
+- PHPUnit：182件PASS（658 assertions）
 - API専用テスト：29件PASS（112 assertions）
-- Laravel Pint：112ファイルPASS
+- Laravel Pint：114ファイルPASS
 
 ## データベース設計
 
