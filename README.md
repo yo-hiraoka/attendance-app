@@ -323,11 +323,11 @@ DB_PASSWORD=password
 git diff --check
 ```
 
-開発時の確認実績（Issue #49・採点用Seeder追加時）：
+提出前の最終確認実績（2026年11月16日・Issue #51まで反映）：
 
-- PHPUnit：182件PASS（658 assertions）
+- PHPUnit：190件PASS（677 assertions）
 - API専用テスト：29件PASS（112 assertions）
-- Laravel Pint：114ファイルPASS
+- Laravel Pint：115ファイルPASS
 
 ## データベース設計
 
