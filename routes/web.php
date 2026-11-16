@@ -9,6 +9,7 @@ use App\Http\Controllers\User\AttendanceCorrectionController;
 use App\Http\Controllers\User\AttendanceReportController;
 use App\Http\Controllers\User\AttendanceViewController;
 use App\Http\Controllers\User\CorrectionRequestListController;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -39,6 +40,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/attendance/report', [AttendanceReportController::class, 'index'])
         ->name('attendance.report');
 
+    Route::get('/attendance/detail/{id}', [AttendanceViewController::class, 'show'])
+        ->whereNumber('id')
+        ->name('attendance.detail');
+
     Route::get('/attendance/{id}', [AttendanceViewController::class, 'show'])
         ->whereNumber('id')
         ->name('attendance.show');
@@ -47,10 +52,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->whereNumber('id')
         ->name('attendance.correction.store');
 
-    Route::get(
-        '/stamp_correction_request/list',
-        [CorrectionRequestListController::class, 'index']
-    )->name('correction-request.list');
+    Route::get('/stamp_correction_request/list', function (Request $request) {
+        if ($request->user()->isAdmin()) {
+            return app(AdminCorrectionRequestController::class)->index();
+        }
+
+        return app(CorrectionRequestListController::class)->index($request);
+    })->name('correction-request.list');
 });
 
 Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
@@ -84,4 +92,16 @@ Route::middleware(['auth', 'admin'])->prefix('admin')->group(function () {
 
     Route::post('/stamp_correction_request/approve/{id}', [AdminCorrectionRequestController::class, 'approve'])
         ->whereNumber('id')->name('admin.correction.approve');
+});
+
+Route::middleware(['auth', 'admin'])->group(function () {
+    Route::get(
+        '/stamp_correction_request/approve/{id}',
+        [AdminCorrectionRequestController::class, 'show']
+    )->whereNumber('id')->name('admin.correction.show.compat');
+
+    Route::post(
+        '/stamp_correction_request/approve/{id}',
+        [AdminCorrectionRequestController::class, 'approve']
+    )->whereNumber('id')->name('admin.correction.approve.compat');
 });
