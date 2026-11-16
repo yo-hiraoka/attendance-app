@@ -5,7 +5,7 @@ Laravel 10を使用した勤怠管理アプリケーションです。
 
 一般ユーザーの勤怠登録・修正申請、管理者による勤怠管理・修正承認などを実装しています。
 
-## 使用技術
+## 使用技術（実行環境）
 
 - PHP 8.2
 - Laravel 10
@@ -231,11 +231,11 @@ DB_PASSWORD=password
 ```bash
 ./vendor/bin/sail npm run dev
 ```
-### 8. ER図
+## ER図
 
 ![勤怠管理アプリのER図](docs/er-diagram.png)
 
-### 9. ブラウザでアクセス
+## URL
 
 | サービス | URL |
 |---|---|
