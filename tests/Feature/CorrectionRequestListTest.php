@@ -47,7 +47,7 @@ class CorrectionRequestListTest extends TestCase
             ->assertRedirect(route('verification.notice'));
     }
 
-    public function test_admin_cannot_view_user_application_list(): void
+    public function test_admin_sees_admin_application_list_on_shared_url(): void
     {
         $admin = User::factory()->create();
 
@@ -57,7 +57,8 @@ class CorrectionRequestListTest extends TestCase
 
         $this->actingAs($admin)
             ->get('/stamp_correction_request/list')
-            ->assertForbidden();
+            ->assertOk()
+            ->assertViewIs('admin.admin-application-list');
     }
 
     public function test_user_can_view_pending_and_approved_applications(): void
