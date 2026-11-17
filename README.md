@@ -282,11 +282,22 @@ DB_PASSWORD=password
 
 ### COACHTECH提出・採点用ダミーデータ
 
-採点用のアカウントと勤怠記録を作成する場合は、以下のコマンドを実行します。
+採点用のアカウントと勤怠記録を作成する場合は、**初期セットアップ時に以下のコマンドを実行してください。**
+
+```bash
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail artisan db:seed
+```
+
+標準の `db:seed` から `SubmissionSampleSeeder` が呼び出され、採点用データが作成されます。
+
+個別に実行する場合は、次のコマンドも利用できます。
 
 ```bash
 ./vendor/bin/sail artisan db:seed --class=SubmissionSampleSeeder
 ```
+
+**注意：** 採点用データには共通パスワードを使用します。学習・採点用環境でのみ実行してください。既存データがあるDBや本番環境では実行しないでください。
 
 | 種類 | メールアドレス | パスワード |
 |---|---|---|

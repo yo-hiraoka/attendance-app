@@ -72,4 +72,28 @@ class SubmissionSampleSeederTest extends TestCase
         $this->assertDatabaseCount('attendances', 102);
         $this->assertDatabaseCount('break_times', 102);
     }
+
+    public function test_default_database_seeder_creates_submission_data(): void
+    {
+        $this->seed();
+
+        $this->assertDatabaseCount('users', 3);
+        $this->assertDatabaseCount('attendances', 102);
+        $this->assertDatabaseCount('break_times', 102);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'user1@example.com',
+            'role' => 'user',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'user2@example.com',
+            'role' => 'user',
+        ]);
+
+        $this->assertDatabaseHas('users', [
+            'email' => 'user3@example.com',
+            'role' => 'admin',
+        ]);
+    }
 }
