@@ -312,7 +312,7 @@ DB_PASSWORD=password
 - データの日付はSeeder実行時の月を基準とします。
 - 指定されたユーザーが既に存在する場合、既存データを上書きせず投入を中止します。
 - 採点用の共通パスワードを使用するため、本番環境では実行しないでください。
-- データは自動投入されません。必要な場合にのみ上記コマンドを実行してください。
+- Migrationだけでは採点用データは投入されません。学習・採点用の初期環境で上記Seederコマンドを実行してください。
 
 ## テスト
 
@@ -334,9 +334,9 @@ DB_PASSWORD=password
 git diff --check
 ```
 
-提出前の最終確認実績（2026年11月16日・Issue #51まで反映）：
+提出前の最終確認実績（2026年11月17日・標準Seeder対応後）：
 
-- PHPUnit：190件PASS（677 assertions）
+- PHPUnit：191件PASS（683 assertions）
 - API専用テスト：29件PASS（112 assertions）
 - Laravel Pint：115ファイルPASS
 
