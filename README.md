@@ -319,9 +319,40 @@ DB_PASSWORD=password
 
 ### PHPUnit
 
+テストはDBを初期化します。まず、Sailの `mysql:3306` の `testing` が削除してよい専用DBであり、通常DB・本番DBに接続しないことを確認してください。DB名やユーザー名だけでは専用性を保証できません。
+
+MySQL管理者が、対象サーバーと既存ユーザーを確認したうえで、対話的なMySQLクライアントから次のSQLを実行します。すでに同名アカウントがある場合は作成せず、そのアカウントと権限を管理者に確認してください。
+
+```sql
+CREATE USER 'attendance_test'@'%' IDENTIFIED BY RANDOM PASSWORD;
+GRANT ALL PRIVILEGES ON `testing`.* TO 'attendance_test'@'%';
+SHOW GRANTS FOR 'attendance_test'@'%';
+```
+
+生成されたパスワードは安全に保管し、共有しないでください。`SHOW GRANTS` と付与されたロールを確認し、`testing` 以外のDBやグローバル権限がないことを確認します。実際にテストユーザーで接続した場合は、次のSQLでMySQLが選んだアカウントと有効なロールも確認できます。
+
+```sql
+SELECT CURRENT_USER(), CURRENT_ROLE(), DATABASE();
+SHOW GRANTS FOR CURRENT_USER;
+```
+
+リポジトリのルートにGit管理外の `.env.testing` を作り、テスト専用接続情報と生成されたパスワードを設定してください。少なくとも `DB_CONNECTION=mysql`、`DB_HOST=mysql`、`DB_PORT=3306`、`DB_DATABASE=testing`、`DB_USERNAME=attendance_test`、`DB_PASSWORD` が必要です。アプリキーなどテストに必要な他の環境設定も用意してください。秘密情報をコミット・共有しないでください。
+
+PHPUnitは `APP_ENV=testing` を強制し、Laravelは `.env.testing` を読み込みます。`DB_DATABASE` と `DB_USERNAME` はPHPUnitの既定値で、既存のプロセス環境変数が優先されます。異なる値はガードが拒否します。`DB_PASSWORD` は `.env.testing` の値を確実に使うため、実行プロセスに既に定義されている場合（空値を含む）は拒否します。接続URL、設定キャッシュ、Unixソケット、読み書き別接続、追加接続オプションも拒否します。
+
+次のコマンドはテスト起動時の設定を確認します。DBへの接続やMigrationは行いません。成功は設定値を示すものであり、DBサーバーの正体や権限を保証しません。
+
+```bash
+./vendor/bin/sail phpunit --filter test_effective_test_database_configuration_is_allowed
+```
+
+専用DBと専用ユーザーの権限を確認した場合に限り、テストを実行します。
+
 ```bash
 ./vendor/bin/sail artisan test
 ```
+
+エラー時は `.env.testing` の存在、テストプロセスに継承された環境変数（`DB_PASSWORD`、`DB_USERNAME`、`DB_DATABASE`、`DATABASE_URL`、`DB_URL` を含む）、設定キャッシュを確認してください。`DB_PASSWORD` がコンテナ環境に定義されている場合は、例えば `docker compose exec laravel.test env -u DB_PASSWORD php vendor/bin/phpunit --filter test_effective_test_database_configuration_is_allowed` のようにテストプロセスから除外できます。他のコマンドにも同じ注意が必要です。並列テストは専用DBの安全性を確認できる仕組みが整うまで非対応です。
 
 ### Laravel Pint
 
