@@ -14,7 +14,11 @@ trait CreatesApplication
     {
         $app = require __DIR__.'/../bootstrap/app.php';
 
+        TestDatabaseGuard::register($app);
+
         $app->make(Kernel::class)->bootstrap();
+
+        TestDatabaseGuard::assertSafe($app);
 
         return $app;
     }
