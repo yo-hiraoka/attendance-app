@@ -124,6 +124,31 @@ class UpdateAttendanceRecordRequest extends FormRequest
                     'clock_out',
                     '退勤時刻は出勤時刻より後の時刻を指定してください。'
                 );
+
+                return;
+            }
+
+            foreach ($attendance->breaks as $break) {
+                $start = $existingUtc($break->started_at)?->addDays($dayShift);
+                $end = $existingUtc($break->ended_at)?->addDays($dayShift);
+
+                if ($start !== null && ($clockIn === null || $start->lessThan($clockIn))) {
+                    $validator->errors()->add(
+                        'clock_in',
+                        '休憩時間は勤務時間内に収めてください。'
+                    );
+                }
+
+                if ($clockOut !== null && (
+                    $end === null
+                    || ($start !== null && $start->greaterThanOrEqualTo($clockOut))
+                    || $end->greaterThan($clockOut)
+                )) {
+                    $validator->errors()->add(
+                        'clock_out',
+                        '休憩時間は勤務時間内に収めてください。'
+                    );
+                }
             }
         });
     }

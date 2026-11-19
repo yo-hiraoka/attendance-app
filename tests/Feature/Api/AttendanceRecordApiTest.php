@@ -511,6 +511,150 @@ class AttendanceRecordApiTest extends TestCase
         ]);
     }
 
+    public function test_updates_outside_break_are_rejected_without_changing_related_records(): void
+    {
+        $user = User::factory()->create();
+        $attendance = Attendance::factory()->create([
+            'user_id' => $user->id,
+            'work_date' => '2026-11-12',
+            'clock_in_at' => '2026-11-12 00:00:00',
+            'clock_out_at' => '2026-11-12 09:00:00',
+        ]);
+        $break = BreakTime::factory()->create([
+            'attendance_id' => $attendance->id,
+            'started_at' => '2026-11-12 03:00:00',
+            'ended_at' => '2026-11-12 04:00:00',
+        ]);
+        $correction = StampCorrectionRequest::create([
+            'attendance_id' => $attendance->id,
+            'user_id' => $user->id,
+            'requested_clock_in_at' => '2026-11-12 00:30:00',
+            'requested_clock_out_at' => '2026-11-12 09:00:00',
+            'reason' => '修正申請',
+            'status' => 'pending',
+        ]);
+        $proposal = CorrectionRequestBreak::create([
+            'correction_request_id' => $correction->id,
+            'started_at' => '2026-11-12 03:00:00',
+            'ended_at' => '2026-11-12 04:00:00',
+        ]);
+        $before = [
+            $attendance->fresh()->getRawOriginal(),
+            $break->fresh()->getRawOriginal(),
+            $correction->fresh()->getRawOriginal(),
+            $proposal->fresh()->getRawOriginal(),
+        ];
+        Sanctum::actingAs($user);
+
+        foreach ([
+            [['clock_out' => '11:00:00'], 'clock_out'],
+            [['clock_in' => '14:00:00'], 'clock_in'],
+            [['date' => '2026-11-13', 'clock_out' => '11:00:00'], 'clock_out'],
+        ] as [$payload, $field]) {
+            $this->patchJson('/api/v1/attendance-records/'.$attendance->id, $payload)
+                ->assertUnprocessable()
+                ->assertJsonValidationErrors($field);
+
+            $this->assertSame($before, [
+                $attendance->fresh()->getRawOriginal(),
+                $break->fresh()->getRawOriginal(),
+                $correction->fresh()->getRawOriginal(),
+                $proposal->fresh()->getRawOriginal(),
+            ]);
+        }
+    }
+
+    public function test_update_accepts_valid_working_hours_and_shifted_break(): void
+    {
+        $user = User::factory()->create();
+        $attendance = Attendance::factory()->create([
+            'user_id' => $user->id,
+            'work_date' => '2026-11-12',
+            'clock_in_at' => '2026-11-12 00:00:00',
+            'clock_out_at' => '2026-11-12 09:00:00',
+        ]);
+        $break = BreakTime::factory()->create([
+            'attendance_id' => $attendance->id,
+            'started_at' => '2026-11-12 03:00:00',
+            'ended_at' => '2026-11-12 04:00:00',
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->putJson('/api/v1/attendance-records/'.$attendance->id, [
+            'date' => '2026-11-13',
+            'clock_in' => '10:00:00',
+            'clock_out' => '14:00:00',
+        ])->assertOk();
+
+        $this->assertDatabaseHas('attendances', [
+            'id' => $attendance->id,
+            'clock_in_at' => '2026-11-13 01:00:00',
+            'clock_out_at' => '2026-11-13 05:00:00',
+        ]);
+        $this->assertDatabaseHas('break_times', [
+            'id' => $break->id,
+            'started_at' => '2026-11-13 03:00:00',
+            'ended_at' => '2026-11-13 04:00:00',
+        ]);
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'clock_out' => null,
+        ])->assertOk();
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'clock_out' => '13:00:00',
+        ])->assertOk();
+    }
+
+    public function test_open_break_allows_null_clock_out_but_rejects_clock_out(): void
+    {
+        $user = User::factory()->create();
+        $attendance = Attendance::factory()->create([
+            'user_id' => $user->id,
+            'work_date' => '2026-11-12',
+            'clock_in_at' => '2026-11-12 00:00:00',
+            'clock_out_at' => null,
+        ]);
+        BreakTime::factory()->create([
+            'attendance_id' => $attendance->id,
+            'started_at' => '2026-11-12 03:00:00',
+            'ended_at' => null,
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'clock_in' => '10:00:00', 'clock_out' => null,
+        ])->assertOk();
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'clock_out' => '18:00:00',
+        ])->assertUnprocessable()->assertJsonValidationErrors('clock_out');
+        $this->assertDatabaseHas('attendances', [
+            'id' => $attendance->id, 'clock_out_at' => null,
+        ]);
+    }
+
+    public function test_overnight_break_is_compared_with_overnight_shift(): void
+    {
+        $user = User::factory()->create();
+        $attendance = Attendance::factory()->create([
+            'user_id' => $user->id,
+            'work_date' => '2026-11-12',
+            'clock_in_at' => '2026-11-12 13:00:00',
+            'clock_out_at' => '2026-11-12 21:00:00',
+        ]);
+        BreakTime::factory()->create([
+            'attendance_id' => $attendance->id,
+            'started_at' => '2026-11-12 14:00:00',
+            'ended_at' => '2026-11-12 17:00:00',
+        ]);
+        Sanctum::actingAs($user);
+
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'date' => '2026-11-13', 'clock_in' => '22:30:00',
+        ])->assertOk();
+        $this->patchJson('/api/v1/attendance-records/'.$attendance->id, [
+            'clock_in' => '23:30:00',
+        ])->assertUnprocessable()->assertJsonValidationErrors('clock_in');
+    }
+
     public function test_deleting_attendance_also_deletes_breaks(): void
     {
         $user = User::factory()->create();
