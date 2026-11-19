@@ -63,6 +63,60 @@ class SubmissionSampleSeederTest extends TestCase
         $this->assertSame(1, $report['anomalies']['long_hours']);
     }
 
+    public function test_second_user_can_clock_in_on_a_day_seeded_for_first_user(): void
+    {
+        $this->travelTo(CarbonImmutable::parse(
+            '2026-11-10 10:00:00',
+            'Asia/Tokyo'
+        ));
+        $this->seed(SubmissionSampleSeeder::class);
+
+        $this->assertDatabaseCount('users', 3);
+        $this->assertDatabaseCount('attendances', 102);
+        $this->assertDatabaseCount('break_times', 102);
+
+        $firstUser = User::where('email', 'user1@example.com')->firstOrFail();
+        $secondUser = User::where('email', 'user2@example.com')->firstOrFail();
+
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $firstUser->id,
+            'work_date' => '2026-11-10',
+        ]);
+        $this->assertDatabaseMissing('attendances', [
+            'user_id' => $secondUser->id,
+            'work_date' => '2026-11-10',
+        ]);
+
+        $this->actingAs($secondUser)
+            ->post('/attendance', ['action' => 'clock_in'])
+            ->assertRedirect(route('attendance.index'))
+            ->assertSessionHasNoErrors();
+
+        $this->assertDatabaseHas('attendances', [
+            'user_id' => $secondUser->id,
+            'work_date' => '2026-11-10',
+            'clock_in_at' => '2026-11-10 01:00:00',
+            'clock_out_at' => null,
+        ]);
+    }
+
+    public function test_month_end_seeding_keeps_each_of_the_six_months(): void
+    {
+        $this->travelTo(CarbonImmutable::parse(
+            '2026-03-31 10:00:00',
+            'Asia/Tokyo'
+        ));
+        $this->seed(SubmissionSampleSeeder::class);
+
+        $user = User::where('email', 'user1@example.com')->firstOrFail();
+
+        foreach (['2025-10', '2025-11', '2025-12', '2026-01', '2026-02', '2026-03'] as $month) {
+            $expected = $month === '2026-03' ? 17 : 15;
+            $this->assertSame($expected, $user->attendances()
+                ->where('work_date', 'like', $month.'%')->count());
+        }
+    }
+
     public function test_running_twice_does_not_duplicate_data(): void
     {
         $this->seed(SubmissionSampleSeeder::class);
