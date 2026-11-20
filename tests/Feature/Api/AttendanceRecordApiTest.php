@@ -65,7 +65,7 @@ class AttendanceRecordApiTest extends TestCase
             'clock_out_at' => '2026-11-09 09:00:00',
         ]);
 
-        BreakTime::factory()->create([
+        $break = BreakTime::factory()->create([
             'attendance_id' => $attendance->id,
             'started_at' => '2026-11-09 03:00:00',
             'ended_at' => '2026-11-09 04:00:00',
@@ -82,13 +82,21 @@ class AttendanceRecordApiTest extends TestCase
                 '18:00:00'
             )
             ->assertJsonPath(
-                'data.breaks.0.start',
-                '2026-11-09T12:00:00+09:00'
+                'data.breaks.0.break_in',
+                '12:00:00'
             )
             ->assertJsonPath(
-                'data.breaks.0.end',
-                '2026-11-09T13:00:00+09:00'
-            );
+                'data.breaks.0.break_out',
+                '13:00:00'
+            )
+            ->assertJsonPath('data.breaks.0.id', $break->id)
+            ->assertJsonPath('data.breaks.0', [
+                'id' => $break->id,
+                'break_in' => '12:00:00',
+                'break_out' => '13:00:00',
+            ])
+            ->assertJsonMissingPath('data.breaks.0.start')
+            ->assertJsonMissingPath('data.breaks.0.end');
     }
 
     public function test_attendance_list_can_be_filtered(): void
@@ -173,7 +181,11 @@ class AttendanceRecordApiTest extends TestCase
             ->assertJsonPath('data.0.clock_in', '09:00:00')
             ->assertJsonPath('data.0.clock_out', '18:00:00')
             ->assertJsonPath('data.0.total_time', '08:00')
-            ->assertJsonPath('data.0.total_break_time', '01:00');
+            ->assertJsonPath('data.0.total_break_time', '01:00')
+            ->assertJsonMissingPath('data.0.breaks')
+            ->assertJsonMissingPath('data.0.applications')
+            ->assertJsonMissingPath('data.0.correction_requests')
+            ->assertJsonMissingPath('data.0.user');
     }
 
     public function test_detail_includes_user_and_correction_requests(): void
@@ -198,15 +210,58 @@ class AttendanceRecordApiTest extends TestCase
         $this->getJson('/api/v1/attendance-records/'.$attendance->id)
             ->assertOk()
             ->assertJsonPath('data.user.name', '山田太郎')
-            ->assertJsonCount(1, 'data.correction_requests')
+            ->assertJsonCount(1, 'data.applications')
+            ->assertJsonMissingPath('data.correction_requests')
             ->assertJsonPath(
-                'data.correction_requests.0.reason',
+                'data.applications.0.reason',
                 '打刻修正'
             )
             ->assertJsonPath(
-                'data.correction_requests.0.status',
+                'data.applications.0.status',
                 'pending'
-            );
+            )
+            ->assertJsonPath('data.applications.0.requested_clock_in', '2026-11-09T09:00:00+09:00')
+            ->assertJsonPath('data.applications.0.requested_clock_out', '2026-11-09T18:00:00+09:00');
+    }
+
+    public function test_detail_returns_null_for_an_unfinished_break(): void
+    {
+        $attendance = Attendance::factory()->create();
+        $break = BreakTime::factory()->create([
+            'attendance_id' => $attendance->id,
+            'started_at' => '2026-11-09 15:30:45',
+            'ended_at' => null,
+        ]);
+
+        $this->getJson('/api/v1/attendance-records/'.$attendance->id)
+            ->assertOk()
+            ->assertJsonPath('data.breaks.0.id', $break->id)
+            ->assertJsonPath('data.breaks.0.break_in', '00:30:45')
+            ->assertJsonPath('data.breaks.0.break_out', null);
+    }
+
+    public function test_missing_record_returns_the_specified_error_for_all_detail_methods(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $url = '/api/v1/attendance-records/999999';
+        $expected = ['error' => '勤怠情報が見つかりませんでした。'];
+
+        $this->getJson($url)->assertNotFound()->assertExactJson($expected);
+        $this->putJson($url, ['comment' => '修正'])->assertNotFound()->assertExactJson($expected);
+        $this->patchJson($url, ['comment' => '修正'])->assertNotFound()->assertExactJson($expected);
+        $this->deleteJson($url)->assertNotFound()->assertExactJson($expected);
+    }
+
+    public function test_web_authorization_and_not_found_responses_are_not_api_json(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $attendance = Attendance::factory()->create(['user_id' => $owner->id]);
+
+        $this->actingAs($other)->get('/attendance/detail/'.$attendance->id)
+            ->assertNotFound()->assertDontSee('勤怠情報が見つかりませんでした。');
+        $this->get('/admin/attendance/list')
+            ->assertForbidden()->assertDontSee('この操作を実行する権限がありません。');
     }
 
     public function test_guest_cannot_create_attendance(): void
@@ -355,6 +410,18 @@ class AttendanceRecordApiTest extends TestCase
             'id' => $attendance->id,
             'note' => '不正な変更',
         ]);
+    }
+
+    public function test_other_user_cannot_replace_attendance_with_put(): void
+    {
+        $owner = User::factory()->create();
+        $other = User::factory()->create();
+        $attendance = Attendance::factory()->create(['user_id' => $owner->id]);
+        Sanctum::actingAs($other);
+
+        $this->putJson('/api/v1/attendance-records/'.$attendance->id, ['comment' => '不正な変更'])
+            ->assertForbidden()
+            ->assertExactJson(['error' => 'この操作を実行する権限がありません。']);
     }
 
     public function test_owner_can_delete_attendance(): void

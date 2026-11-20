@@ -41,7 +41,7 @@ class Handler extends ExceptionHandler
             AccessDeniedHttpException $exception,
             Request $request
         ) {
-            if ($request->is('api/*')) {
+            if ($request->is('api/v1/attendance-records', 'api/v1/attendance-records/*')) {
                 return response()->json([
                     'error' => 'この操作を実行する権限がありません。',
                 ], 403);
