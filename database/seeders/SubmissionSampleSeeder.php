@@ -34,7 +34,7 @@ class SubmissionSampleSeeder extends Seeder
                 $users[] = User::factory()->create([
                     'name' => '採点用ユーザー'.($index + 1),
                     'email' => $email,
-                    'email_verified_at' => now(),
+                    'email_verified_at' => now('UTC'),
                     'password' => 'password',
                     'role' => $index === 2 ? 'admin' : 'user',
                 ]);
