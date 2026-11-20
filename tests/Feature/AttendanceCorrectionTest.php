@@ -69,7 +69,7 @@ class AttendanceCorrectionTest extends TestCase
 
         $this->get('/attendance/'.$attendance->id)
             ->assertOk()
-            ->assertSee('承認待ちのため修正できません');
+            ->assertSeeText('承認待ちのため修正はできません。');
     }
 
     public function test_user_cannot_submit_duplicate_pending_request(): void
@@ -149,7 +149,9 @@ class AttendanceCorrectionTest extends TestCase
                 'new_clock_in' => '09:00',
                 'new_clock_out' => '09:00',
             ]))
-            ->assertSessionHasErrors('new_clock_in');
+            ->assertSessionHasErrors([
+                'new_clock_in' => '出勤時間もしくは退勤時間が不適切な値です',
+            ]);
     }
 
     public function test_break_outside_working_hours_is_rejected(): void
@@ -180,7 +182,7 @@ class AttendanceCorrectionTest extends TestCase
                 'new_break_out' => [],
             ]))
             ->assertSessionHasErrors([
-                'new_clock_in' => '出勤時間が不適切な値です',
+                'new_clock_in' => '出勤時間もしくは退勤時間が不適切な値です',
             ]);
 
         $this->assertDatabaseCount('stamp_correction_requests', 0);
