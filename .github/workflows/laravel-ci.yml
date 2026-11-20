@@ -1,0 +1,113 @@
+name: Laravel CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: laravel-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: PHPUnit and Pint (PHP 8.2 / MySQL 8.4)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      mysql:
+        image: mysql:8.4
+        env:
+          MYSQL_DATABASE: testing
+          MYSQL_USER: attendance_test
+          MYSQL_PASSWORD: ci_only_test_password
+          MYSQL_ROOT_PASSWORD: ci_only_root_password
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping --silent"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: bcmath, ctype, curl, dom, fileinfo, mbstring, mysql, pdo_mysql, tokenizer, xml, zip
+          coverage: none
+          tools: composer:v2
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Install and build frontend assets
+        run: |
+          npm ci
+          npm run build
+
+      - name: Configure isolated testing environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          # TestDatabaseGuard requires DB_HOST=mysql even on a hosted runner.
+          echo '127.0.0.1 mysql' | sudo tee -a /etc/hosts > /dev/null
+
+          umask 077
+          app_key="base64:$(php -r 'echo base64_encode(random_bytes(32));')"
+          cat > .env.testing <<EOF
+          APP_NAME=AttendanceCI
+          APP_ENV=testing
+          APP_KEY=${app_key}
+          APP_DEBUG=true
+          APP_URL=http://localhost
+          DB_CONNECTION=mysql
+          DB_HOST=mysql
+          DB_PORT=3306
+          DB_DATABASE=testing
+          DB_USERNAME=attendance_test
+          DB_PASSWORD=ci_only_test_password
+          CACHE_DRIVER=array
+          SESSION_DRIVER=array
+          QUEUE_CONNECTION=sync
+          MAIL_MAILER=array
+          EOF
+          chmod 600 .env.testing
+
+      - name: Verify isolated MySQL connection
+        env:
+          APP_ENV: testing
+        run: |
+          php -r '
+          $db = new PDO("mysql:host=mysql;port=3306;dbname=testing", "attendance_test", "ci_only_test_password", [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);
+          $grants = $db->query("SHOW GRANTS")->fetchAll(PDO::FETCH_COLUMN);
+          foreach ($grants as $grant) {
+              if (str_contains($grant, "ALL PRIVILEGES ON *.*") || str_contains($grant, "GRANT OPTION")) {
+                  throw new RuntimeException("Unexpected privileged CI database account");
+              }
+          }
+          echo "Isolated CI MySQL connection verified", PHP_EOL;
+          '
+
+      - name: Run PHPUnit
+        env:
+          APP_ENV: testing
+        run: php artisan test
+
+      - name: Run Pint
+        run: vendor/bin/pint --test
