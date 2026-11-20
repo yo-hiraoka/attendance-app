@@ -2,13 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\UsesUtcTimestamps;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class BreakTime extends Model
 {
-    use HasFactory;
+    use HasFactory, UsesUtcTimestamps;
 
     protected $fillable = [
         'attendance_id',
