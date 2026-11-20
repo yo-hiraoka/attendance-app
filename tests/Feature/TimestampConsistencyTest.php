@@ -6,6 +6,7 @@ use App\Models\Attendance;
 use App\Models\BreakTime;
 use App\Models\StampCorrectionRequest;
 use App\Models\User;
+use App\Support\MySqlConnectionConfiguration;
 use Carbon\CarbonImmutable;
 use Database\Seeders\AttendanceDemoSeeder;
 use Database\Seeders\SubmissionSampleSeeder;
@@ -14,10 +15,92 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\URL;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
+use Tests\TestDatabaseGuard;
 
 class TimestampConsistencyTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_mysql_url_cannot_override_utc_session_timezone(): void
+    {
+        $base = config('database.connections.mysql');
+        $base['url'] = sprintf(
+            'mysql://%s:%s@%s:%s/%s?timezone=%%2B09%%3A00&charset=utf8mb4',
+            rawurlencode($base['username']), rawurlencode($base['password']),
+            $base['host'], $base['port'], $base['database']
+        );
+        $resolved = MySqlConnectionConfiguration::resolve($base);
+        TestDatabaseGuard::check($resolved, false, null, null, false);
+
+        $this->assertSame('+00:00', $resolved['timezone']);
+        $this->assertSame('utf8mb4', $resolved['charset']);
+        $this->assertSame('+00:00', DB::connectUsing('utc_url_test', $resolved)
+            ->selectOne('SELECT @@session.time_zone AS zone')->zone);
+        DB::purge('utc_url_test');
+        $this->assertSame('+00:00', DB::selectOne('SELECT @@session.time_zone AS zone')->zone);
+    }
+
+    public function test_mysql_read_and_write_timezones_cannot_override_utc(): void
+    {
+        $resolved = MySqlConnectionConfiguration::resolve([
+            'driver' => 'mysql', 'host' => 'mysql', 'timezone' => '+09:00',
+            'read' => ['host' => 'read-host', 'timezone' => '+09:00'],
+            'write' => [['host' => 'write-host', 'timezone' => '-05:00']],
+        ]);
+
+        $this->assertSame('+00:00', $resolved['timezone']);
+        $this->assertSame('+00:00', $resolved['read']['timezone']);
+        $this->assertSame('+00:00', $resolved['write'][0]['timezone']);
+        $this->assertSame('read-host', $resolved['read']['host']);
+        $this->assertSame('write-host', $resolved['write'][0]['host']);
+    }
+
+    public function test_mysql_nested_url_is_rejected_before_another_resolution(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        MySqlConnectionConfiguration::resolve([
+            'url' => 'mysql://mysql/testing?url=mysql%3A%2F%2Fmysql%2Ftesting%3Ftimezone%3D%252B09%253A00',
+        ]);
+    }
+
+    public function test_timestamp_accessors_preserve_array_json_and_carbon_behavior(): void
+    {
+        $user = new User;
+        $user->setRawAttributes([
+            'name' => 'Example', 'created_at' => '2026-11-20 00:00:00',
+            'updated_at' => '2026-11-20 01:00:00', 'email_verified_at' => '2026-11-20 02:00:00',
+        ]);
+        $application = new StampCorrectionRequest;
+        $application->setRawAttributes([
+            'approved_at' => '2026-11-20 03:00:00', 'created_at' => null,
+            'updated_at' => null, 'requested_clock_in_at' => '2026-11-20 04:00:00',
+        ]);
+
+        $userArray = $user->toArray();
+        foreach (['created_at' => '00', 'updated_at' => '01', 'email_verified_at' => '02'] as $key => $hour) {
+            $this->assertSame("2026-11-20T{$hour}:00:00.000000Z", $userArray[$key]);
+            $this->assertSame($userArray[$key], json_decode($user->toJson(), true)[$key]);
+            $this->assertSame('UTC', $user->$key->timezoneName);
+        }
+        $this->assertSame('2026-11-20 09:00', $user->created_at->copy()->setTimezone('Asia/Tokyo')->format('Y-m-d H:i'));
+        $this->assertSame('Example', $userArray['name']);
+        $user->syncOriginal();
+        $user->created_at->addDay();
+        $this->assertSame('2026-11-20 00:00:00', $user->getAttributes()['created_at']);
+        $this->assertFalse($user->isDirty());
+        $this->assertSame('2026-11-20T03:00:00.000000Z', $application->toArray()['approved_at']);
+        $this->assertSame('2026-11-20T03:00:00.000000Z', json_decode($application->toJson(), true)['approved_at']);
+        $this->assertSame('UTC', $application->approved_at->timezoneName);
+        $this->assertNull($application->toArray()['created_at']);
+        $this->assertNull($application->updated_at);
+        $this->assertSame('Asia/Tokyo', $application->requested_clock_in_at->timezoneName);
+        $user->setRawAttributes(['email_verified_at' => null]);
+        $this->assertNull($user->email_verified_at);
+        $this->assertNull($user->toArray()['email_verified_at']);
+        $application->setRawAttributes(['approved_at' => null]);
+        $this->assertNull($application->approved_at);
+        $this->assertNull($application->toArray()['approved_at']);
+    }
 
     public function test_demo_application_is_saved_in_utc_and_displayed_in_jst(): void
     {

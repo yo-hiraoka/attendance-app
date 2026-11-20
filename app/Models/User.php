@@ -4,10 +4,10 @@ namespace App\Models;
 
 use App\Models\Concerns\UsesUtcTimestamps;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -46,9 +46,9 @@ class User extends Authenticatable implements MustVerifyEmail
         'password' => 'hashed',
     ];
 
-    public function getEmailVerifiedAtAttribute($value): ?Carbon
+    protected function emailVerifiedAt(): Attribute
     {
-        return $value === null ? null : Date::parse($value, 'UTC');
+        return Attribute::get(fn ($value) => $value === null ? null : Date::parse($value, 'UTC'))->withoutObjectCaching();
     }
 
     public function attendances()

@@ -2,6 +2,7 @@
 
 namespace App\Models\Concerns;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Date;
 
@@ -12,14 +13,14 @@ trait UsesUtcTimestamps
         return Date::now('UTC');
     }
 
-    public function getCreatedAtAttribute($value): ?Carbon
+    protected function createdAt(): Attribute
     {
-        return $value === null ? null : Date::parse($value, 'UTC');
+        return Attribute::get(fn ($value) => $value === null ? null : Date::parse($value, 'UTC'))->withoutObjectCaching();
     }
 
-    public function getUpdatedAtAttribute($value): ?Carbon
+    protected function updatedAt(): Attribute
     {
-        return $value === null ? null : Date::parse($value, 'UTC');
+        return Attribute::get(fn ($value) => $value === null ? null : Date::parse($value, 'UTC'))->withoutObjectCaching();
     }
 
     protected function addDateAttributesToArray(array $attributes)
