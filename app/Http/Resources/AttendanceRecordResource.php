@@ -74,28 +74,30 @@ class AttendanceRecordResource extends JsonResource
                 : $formatDuration($totalWorkSeconds),
             'total_break_time' => $formatDuration($totalBreakSeconds),
             'comment' => $this->note,
-            'breaks' => $this->whenLoaded(
-                'breaks',
+            'breaks' => $this->when(
+                ! $request->routeIs('api.v1.attendance-records.index')
+                    && $this->resource->relationLoaded('breaks'),
                 fn () => $this->breaks->map(
                     fn ($break): array => [
                         'id' => $break->id,
-                        'start' => $toJst(
+                        'break_in' => $toJst(
                             $break->started_at
-                        )?->toIso8601String(),
-                        'end' => $toJst(
+                        )?->format('H:i:s'),
+                        'break_out' => $toJst(
                             $break->ended_at
-                        )?->toIso8601String(),
+                        )?->format('H:i:s'),
                     ]
                 )->all()
             ),
-            'user' => $this->whenLoaded(
-                'user',
+            'user' => $this->when(
+                ! $request->routeIs('api.v1.attendance-records.index')
+                    && $this->resource->relationLoaded('user'),
                 fn () => [
                     'id' => $this->user->id,
                     'name' => $this->user->name,
                 ]
             ),
-            'correction_requests' => $this->whenLoaded(
+            'applications' => $this->whenLoaded(
                 'correctionRequests',
                 fn () => $this->correctionRequests->map(
                     fn ($correction): array => [
