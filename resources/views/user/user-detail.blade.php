@@ -154,7 +154,7 @@
                 </button>
             @else
                 <p class="readonly-message">
-                    承認待ちのため修正できません
+                    承認待ちのため修正はできません。
                 </p>
             @endif
         </div>

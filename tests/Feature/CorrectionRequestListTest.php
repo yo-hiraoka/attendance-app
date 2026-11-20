@@ -178,6 +178,6 @@ class CorrectionRequestListTest extends TestCase
         $this->get('/attendance/'.$application->attendance_id)
             ->assertOk()
             ->assertSee('勤怠詳細')
-            ->assertSee('承認待ちのため修正できません');
+            ->assertSeeText('承認待ちのため修正はできません。');
     }
 }
