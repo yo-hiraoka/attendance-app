@@ -38,6 +38,23 @@ class AuthenticationMessagesTest extends TestCase
         ]);
     }
 
+    public function test_registration_rejects_invalid_email_with_exact_message(): void
+    {
+        $this->post('/register', $this->registrationInput([
+            'email' => 'invalid-email',
+        ]))->assertSessionHasErrors([
+            'email' => 'メールアドレスはメール形式で入力してください',
+        ]);
+    }
+
+    public function test_registration_displays_invalid_email_message_on_form(): void
+    {
+        $this->from('/register')->followingRedirects()->post('/register', $this->registrationInput([
+            'email' => 'invalid-email',
+        ]))->assertOk()
+            ->assertSeeText('メールアドレスはメール形式で入力してください');
+    }
+
     public function test_registration_requires_password_with_expected_message(): void
     {
         $this->post('/register', $this->registrationInput([

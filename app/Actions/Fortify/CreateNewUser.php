@@ -32,6 +32,8 @@ class CreateNewUser implements CreatesNewUsers
                 Rule::unique(User::class),
             ],
             'password' => $this->passwordRules(),
+        ], [
+            'email.email' => 'メールアドレスはメール形式で入力してください',
         ])->validate();
 
         return User::create([
