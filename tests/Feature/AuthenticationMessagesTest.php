@@ -49,7 +49,7 @@ class AuthenticationMessagesTest extends TestCase
 
     public function test_registration_displays_invalid_email_message_on_form(): void
     {
-        $this->followingRedirects()->post('/register', $this->registrationInput([
+        $this->from('/register')->followingRedirects()->post('/register', $this->registrationInput([
             'email' => 'invalid-email',
         ]))->assertOk()
             ->assertSeeText('メールアドレスはメール形式で入力してください');
