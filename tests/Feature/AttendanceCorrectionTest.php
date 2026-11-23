@@ -139,6 +139,61 @@ class AttendanceCorrectionTest extends TestCase
         $this->assertDatabaseCount('stamp_correction_requests', 0);
     }
 
+    public function test_missing_comment_keeps_fn029_exact_message(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor($user);
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'comment' => '',
+            ]))
+            ->assertSessionHasErrors([
+                'comment' => '備考を記入してください',
+            ]);
+
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
+
+    public function test_invalid_clock_format_is_rejected_without_creating_request(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor($user);
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'new_clock_in' => 'bad-time',
+            ]))
+            ->assertSessionHasErrors('new_clock_in');
+
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
+
+    public function test_admin_is_forbidden_even_if_correction_input_is_invalid(): void
+    {
+        $admin = User::factory()->create();
+        $admin->forceFill(['role' => 'admin'])->save();
+        $attendance = $this->attendanceFor(User::factory()->create());
+
+        $this->actingAs($admin)
+            ->post('/attendance/'.$attendance->id, ['comment' => ''])
+            ->assertForbidden();
+
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
+
+    public function test_another_users_attendance_is_not_found_before_input_validation(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor(User::factory()->create());
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, ['comment' => ''])
+            ->assertNotFound();
+
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
+
     public function test_equal_clock_in_and_out_are_rejected(): void
     {
         $user = User::factory()->create();
