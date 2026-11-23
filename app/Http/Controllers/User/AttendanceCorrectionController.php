@@ -3,16 +3,16 @@
 namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\User\AttendanceCorrectionRequest;
 use App\Models\Attendance;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
-use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 class AttendanceCorrectionController extends Controller
 {
-    public function store(Request $request, int $id): RedirectResponse
+    public function store(AttendanceCorrectionRequest $request, int $id): RedirectResponse
     {
         abort_if($request->user()->isAdmin(), 403);
 
@@ -20,17 +20,7 @@ class AttendanceCorrectionController extends Controller
             ->where('user_id', $request->user()->id)
             ->findOrFail($id);
 
-        $validated = $request->validate([
-            'new_clock_in' => ['required', 'date_format:H:i'],
-            'new_clock_out' => ['required', 'date_format:H:i'],
-            'new_break_in' => ['sometimes', 'array'],
-            'new_break_in.*' => ['nullable', 'date_format:H:i'],
-            'new_break_out' => ['sometimes', 'array'],
-            'new_break_out.*' => ['nullable', 'date_format:H:i'],
-            'comment' => ['required', 'string'],
-        ], [
-            'comment.required' => '備考を記入してください',
-        ]);
+        $validated = $request->validated();
         // 日付は元の勤務日を使用する。利用者による日付変更は許可しない。
         $workDate = CarbonImmutable::parse(
             $attendance->getRawOriginal('work_date'),
