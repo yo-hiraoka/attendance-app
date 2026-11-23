@@ -48,6 +48,31 @@ class UserRegistrationTest extends TestCase
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
+    public function test_fortify_registration_controller_uses_form_request_adapter(): void
+    {
+        $this->assertInstanceOf(
+            \App\Http\Controllers\Auth\RegisteredUserController::class,
+            app(\Laravel\Fortify\Http\Controllers\RegisteredUserController::class)
+        );
+    }
+
+    public function test_registration_still_normalizes_uppercase_email(): void
+    {
+        Notification::fake();
+
+        $this->post('/register', [
+            'name' => 'テストユーザー',
+            'email' => 'UPPERCASE@EXAMPLE.COM',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertRedirect(route('verification.notice'));
+
+        $user = User::where('email', 'uppercase@example.com')->firstOrFail();
+
+        $this->assertSame('uppercase@example.com', $user->email);
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
     public function test_registration_requires_valid_input(): void
     {
         $response = $this->post('/register', [
