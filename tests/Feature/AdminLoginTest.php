@@ -41,6 +41,27 @@ class AdminLoginTest extends TestCase
         $this->assertAuthenticatedAs($admin);
     }
 
+    public function test_admin_login_rejects_invalid_email_format_with_existing_message(): void
+    {
+        $this->post('/admin/login', [
+            'email' => 'invalid-email',
+            'password' => 'password123',
+        ])->assertSessionHasErrors([
+            'email' => 'メールアドレスの形式で入力してください',
+        ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_admin_login_validation_error_is_displayed_on_form(): void
+    {
+        $this->from('/admin/login')->followingRedirects()->post('/admin/login', [
+            'email' => '',
+            'password' => 'password123',
+        ])->assertOk()
+            ->assertSeeText('メールアドレスを入力してください');
+    }
+
     public function test_regular_user_cannot_login_as_admin(): void
     {
         $user = User::factory()->create([
