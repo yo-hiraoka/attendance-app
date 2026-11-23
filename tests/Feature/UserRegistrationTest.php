@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Fortify\Http\Controllers\RegisteredUserController as FortifyRegisteredUserController;
 use Tests\TestCase;
 
 class UserRegistrationTest extends TestCase
@@ -51,8 +53,8 @@ class UserRegistrationTest extends TestCase
     public function test_fortify_registration_controller_uses_form_request_adapter(): void
     {
         $this->assertInstanceOf(
-            \App\Http\Controllers\Auth\RegisteredUserController::class,
-            app(\Laravel\Fortify\Http\Controllers\RegisteredUserController::class)
+            RegisteredUserController::class,
+            app(FortifyRegisteredUserController::class)
         );
     }
 
