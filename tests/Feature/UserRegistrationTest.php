@@ -2,11 +2,13 @@
 
 namespace Tests\Feature;
 
+use App\Http\Controllers\Auth\RegisteredUserController;
 use App\Models\User;
 use Illuminate\Auth\Notifications\VerifyEmail;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
+use Laravel\Fortify\Http\Controllers\RegisteredUserController as FortifyRegisteredUserController;
 use Tests\TestCase;
 
 class UserRegistrationTest extends TestCase
@@ -45,6 +47,31 @@ class UserRegistrationTest extends TestCase
         $this->assertEquals('user', $user->role);
         $this->assertNull($user->email_verified_at);
 
+        Notification::assertSentTo($user, VerifyEmail::class);
+    }
+
+    public function test_fortify_registration_controller_uses_form_request_adapter(): void
+    {
+        $this->assertInstanceOf(
+            RegisteredUserController::class,
+            app(FortifyRegisteredUserController::class)
+        );
+    }
+
+    public function test_registration_still_normalizes_uppercase_email(): void
+    {
+        Notification::fake();
+
+        $this->post('/register', [
+            'name' => 'テストユーザー',
+            'email' => 'UPPERCASE@EXAMPLE.COM',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ])->assertRedirect(route('verification.notice'));
+
+        $user = User::where('email', 'uppercase@example.com')->firstOrFail();
+
+        $this->assertSame('uppercase@example.com', $user->email);
         Notification::assertSentTo($user, VerifyEmail::class);
     }
 
