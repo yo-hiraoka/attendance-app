@@ -137,6 +137,35 @@ CSV出力は管理者専用機能です。
 - 勤務日変更では関連する修正申請の日時も移動します。承認済み申請を含む業務上の取り扱いには追加確認が必要です。
 - GET APIは仕様に従って認証不要です。個人の勤怠情報を返すため、実データを含む環境を外部公開しないでください。
 
+## 認証・入力検証の実装対応
+
+配布仕様のFN001/FN002、FN006/FN008、FN014/FN015に対応する入力検証・認証処理は以下の構成です。
+
+| 要件 | 対象 | 実装 |
+|---|---|---|
+| FN001・FN002 | 会員登録 | Fortifyの登録処理と`RegistrationRequest`（FormRequest）。`CreateNewUser`でも同じ入力規則を使用 |
+| FN006・FN008 | 一般ログイン | Fortifyの`LoginRequest`と認証処理 |
+| FN014・FN015 | 管理者ログイン | `AdminLoginRequest`（Fortify `LoginRequest`継承）とFortifyの認証パイプライン |
+| FN028 | 一般勤怠修正 | `AttendanceCorrectionRequest`が入力形式を検証し、Controllerで業務上の時刻整合性を確認 |
+
+管理者ログインは`/admin/login`、一般ログインは`/login`を使用します。認証時にルートに応じた役割を確認し、管理者が一般ログインから入ること、および一般ユーザーが管理者ログインから入ることを禁止しています。
+
+## 提出前の画面・動作確認
+
+以下は**手動確認のためのチェック項目**です。GitHub Actionsの成功だけでは確認済みとはなりません。
+
+- [ ] `/register`：必須項目、メール形式、パスワード確認エラー、登録成功を画面で確認
+- [ ] `/login`・`/admin/login`：通常ログイン、権限の異なるアカウントの拒否、ログアウトを確認
+- [ ] Mailpit：メール認証の送信・認証・再送を確認
+- [ ] `/attendance`：出勤、複数休憩、休憩戻、退勤、ステータス表示を確認
+- [ ] `/attendance/list`・`/attendance/detail/{id}`：一覧、前月・翌月、詳細と打刻時刻を確認
+- [ ] 勤怠修正申請：申請・承認待ち表示・管理者承認・承認済み反映を確認
+- [ ] 管理者画面：日別一覧、前日・翌日、直接修正、スタッフ別一覧とCSV出力を確認
+- [ ] 応用機能：本人のレポート、およびAPIの取得・登録・更新・削除を仕様の範囲内で確認
+- [ ] 提出用の基本設計書・テーブル仕様書・ER図と実装を最終照合
+
+※ 仕様書同士に差異があるFN029の文言と、応用APIの物理テーブル名は配布元へ確認中のため、このチェックでは判断・変更していません。
+
 ## 環境構築
 
 ### 必要な環境
@@ -366,11 +395,13 @@ PHPUnitは `APP_ENV=testing` を強制し、Laravelは `.env.testing` を読み�
 git diff --check
 ```
 
-提出前の最終確認実績（2026年11月17日・標準Seeder対応後）：
+GitHub Actionsの最新確認実績（2026年11月24日・`main`、コミット `d3eea970bc5a`）：
 
-- PHPUnit：191件PASS（683 assertions）
-- API専用テスト：29件PASS（112 assertions）
-- Laravel Pint：115ファイルPASS
+- PHPUnit：232件PASS（914 assertions）
+- Laravel Pint：125ファイルPASS
+- 実行結果：https://github.com/yo-hiraoka/attendance-app/actions/runs/45301817692
+
+※ 上記はGitHub Actionsでの自動テスト結果です。提出時のブラウザ操作確認・デザインの目視確認を完了したことは意味しません。
 
 ## データベース設計
 
