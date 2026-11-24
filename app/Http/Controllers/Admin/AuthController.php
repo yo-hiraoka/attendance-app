@@ -6,9 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\AdminLoginRequest;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
+use Laravel\Fortify\Http\Controllers\AuthenticatedSessionController;
 
 class AuthController extends Controller
 {
@@ -21,19 +20,11 @@ class AuthController extends Controller
         return view('admin.admin-login');
     }
 
-    public function login(AdminLoginRequest $request): RedirectResponse
-    {
-        $credentials = $request->validated();
-
-        $credentials['role'] = 'admin';
-
-        if (! Auth::attempt($credentials)) {
-            throw ValidationException::withMessages([
-                'email' => __('auth.failed'),
-            ]);
-        }
-
-        $request->session()->regenerate();
+    public function login(
+        AdminLoginRequest $request,
+        AuthenticatedSessionController $fortify
+    ): RedirectResponse {
+        $fortify->store($request);
 
         return redirect()->route('admin.home');
     }
