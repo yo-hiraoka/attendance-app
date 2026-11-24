@@ -162,9 +162,31 @@ class AttendanceCorrectionTest extends TestCase
 
         $this->actingAs($user)
             ->post('/attendance/'.$attendance->id, $this->input([
-                'new_clock_in' => 'bad-time',
+                'new_clock_in' => '8:00',
+                'new_clock_out' => '18:3',
             ]))
-            ->assertSessionHasErrors('new_clock_in');
+            ->assertSessionHasErrors([
+                'new_clock_in' => '出勤時刻はHH:mm形式で入力してください',
+                'new_clock_out' => '退勤時刻はHH:mm形式で入力してください',
+            ]);
+
+        $this->assertDatabaseCount('stamp_correction_requests', 0);
+    }
+
+    public function test_invalid_break_time_formats_have_japanese_messages(): void
+    {
+        $user = User::factory()->create();
+        $attendance = $this->attendanceFor($user);
+
+        $this->actingAs($user)
+            ->post('/attendance/'.$attendance->id, $this->input([
+                'new_break_in' => ['12:0'],
+                'new_break_out' => ['13:0'],
+            ]))
+            ->assertSessionHasErrors([
+                'new_break_in.0' => '休憩開始時刻はHH:mm形式で入力してください',
+                'new_break_out.0' => '休憩終了時刻はHH:mm形式で入力してください',
+            ]);
 
         $this->assertDatabaseCount('stamp_correction_requests', 0);
     }
