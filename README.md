@@ -189,20 +189,16 @@ CSV出力は管理者専用機能です。
 - Docker Desktop
 - Docker Compose
 - Git
-- Composer
-- Node.js / npm
+- Composer（ホストにない場合は配布手順のDockerイメージを使用）
+- Node.js / npm（Sail内で実行する場合はホスト側での導入不要）
 
 Windowsの場合はWSL2上での実行を想定しています。
 
 ### Composerについて
 
-このREADMEでは、WSL2またはホスト環境にPHPとComposerが
-インストールされていることを前提としています。
+ホストのPHPとComposerで`composer install`を実行できます。ホストにない場合は、COACHTECH配布手順の`laravelsail/php82-composer` Dockerイメージを使用できます。
 
-`composer install` はLaravel Sail起動前に実行してください。
-
-初回セットアップでは、PHPとComposerの対応バージョン、
-必要なPHP拡張機能がインストールされていることを確認してください。
+`composer install` はLaravel Sail起動前に実行してください。ホスト実行の場合は、PHPのバージョンと拡張機能が依存パッケージの要件を満たす必要があります。
 
 Laravel Sailの起動後は、Artisanやnpmなどのコマンドを
 `./vendor/bin/sail` 経由で実行します。
@@ -226,19 +222,32 @@ https://github.com/yo-hiraoka/attendance-app.git
 composer install
 ```
 
+ホストにComposerがない場合は、上のコマンドに**代えて**、プロジェクトのルートで次を実行してください（COACHTECH配布手順のDockerイメージ）。
+
+```bash
+docker run --rm \
+  -u "$(id -u):$(id -g)" \
+  -v "$(pwd):/var/www/html" -w /var/www/html \
+  -e COMPOSER_CACHE_DIR=/tmp/composer_cache \
+  laravelsail/php82-composer:latest \
+  composer install
+```
+
 ### 3. 環境変数を設定
 
 ```bash
 cp .env.example .env
 ```
 
-`.env` のMySQL接続情報が以下になっていることを確認してください。
+COACHTECH配布の環境構築手順では、**新規採点用環境**のDB名は`laravel`です。`.env.example`の初期値は`attendance_app`のため、配布手順に合わせる場合はコピー後の`.env`で次のとおり明示的に編集してください。
+
+既存の開発環境ではDB名を変更しないでください。使用中のDBやDockerボリュームは初期化・削除しません。
 
 ```dotenv
 DB_CONNECTION=mysql
 DB_HOST=mysql
 DB_PORT=3306
-DB_DATABASE=attendance_app
+DB_DATABASE=laravel
 DB_USERNAME=sail
 DB_PASSWORD=password
 ```
@@ -257,11 +266,19 @@ DB_PASSWORD=password
 ./vendor/bin/sail artisan key:generate
 ```
 
-### 6. データベースを作成
+### 6. データベースを初期化（新規採点用環境のみ）
+
+COACHTECH配布手順は`migrate --seed`です。空の新規環境では次のコマンドでテーブルと採点用データを作成します。
 
 ```bash
-./vendor/bin/sail artisan migrate
+./vendor/bin/sail artisan migrate --seed
 ```
+
+標準の`DatabaseSeeder`は`SubmissionSampleSeeder`を呼び出します。このため、**上記を実行した場合、後述の`db:seed`を重ねて実行しないでください**。既存DBがある環境では`migrate --seed`やSeederの再実行を行わず、事前に接続先・データを確認してください。
+
+既存の開発環境で新しいマイグレーションだけ適用する必要がある場合は、環境を確認のうえ、`./vendor/bin/sail artisan migrate`を使用してください。
+
+配布の`resources/`は開発開始時に提供Blade/CSSを移入するためのものです。このリポジトリには実装に必要なBlade/CSS/JSがすでに含まれているため、**クローン後に提供ファイルを再び上書きコピーしないでください**（修正済みの画面ファイルを失うおそれがあります）。
 
 ### 7. フロントエンドの準備
 
