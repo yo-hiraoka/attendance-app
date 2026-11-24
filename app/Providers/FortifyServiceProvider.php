@@ -61,7 +61,7 @@ class FortifyServiceProvider extends ServiceProvider
             $user = User::where('email', $request->input('email'))->first();
             if (
                 $user &&
-                ! $user->isAdmin() &&
+                $user->isAdmin() === $request->routeIs('admin.login.store') &&
                 Hash::check($request->input('password', ''), $user->password)
             ) {
                 return $user;
