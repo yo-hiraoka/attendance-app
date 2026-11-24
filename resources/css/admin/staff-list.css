@@ -29,8 +29,10 @@
 
 .table__header {
     border-bottom: 3px solid #E1E1E1;
-    padding-left: 70px;
-    padding-right: 70px;
+    padding-left: 12px;
+    padding-right: 12px;
+    text-align: center;
+    white-space: nowrap;
 }
 
 .table__header--item {
