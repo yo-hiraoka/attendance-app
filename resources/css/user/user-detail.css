@@ -85,6 +85,12 @@
     outline: none;
 }
 
+/* 氏名欄のみ幅を確保し、時刻・日付欄の既存デザインは維持する */
+.form__input--name {
+    width: 240px;
+    max-width: 100%;
+}
+
 /* ボタン */
 .form__button {
     text-align: right;
