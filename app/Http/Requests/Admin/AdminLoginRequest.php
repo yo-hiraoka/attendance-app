@@ -2,9 +2,9 @@
 
 namespace App\Http\Requests\Admin;
 
-use Illuminate\Foundation\Http\FormRequest;
+use Laravel\Fortify\Http\Requests\LoginRequest;
 
-class AdminLoginRequest extends FormRequest
+class AdminLoginRequest extends LoginRequest
 {
     public function authorize(): bool
     {

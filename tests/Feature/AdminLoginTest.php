@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Http\Requests\Admin\AdminLoginRequest;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Laravel\Fortify\Http\Requests\LoginRequest;
 use Tests\TestCase;
 
 class AdminLoginTest extends TestCase
@@ -39,6 +41,44 @@ class AdminLoginTest extends TestCase
 
         $response->assertRedirect(route('admin.home'));
         $this->assertAuthenticatedAs($admin);
+    }
+
+    public function test_admin_login_request_is_compatible_with_fortify(): void
+    {
+        $this->assertTrue(is_subclass_of(AdminLoginRequest::class, LoginRequest::class));
+    }
+
+    public function test_admin_login_rejects_wrong_password_with_fn016_message(): void
+    {
+        $admin = $this->createAdmin();
+
+        $this->post('/admin/login', [
+            'email' => $admin->email,
+            'password' => 'wrong-password',
+        ])->assertSessionHasErrors([
+            'email' => 'ログイン情報が登録されていません',
+        ]);
+
+        $this->assertGuest();
+    }
+
+    public function test_admin_login_is_rate_limited_after_five_failed_attempts(): void
+    {
+        $admin = $this->createAdmin();
+
+        for ($attempt = 0; $attempt < 5; $attempt++) {
+            $this->post('/admin/login', [
+                'email' => $admin->email,
+                'password' => 'wrong-password',
+            ])->assertSessionHasErrors('email');
+        }
+
+        $this->post('/admin/login', [
+            'email' => $admin->email,
+            'password' => 'wrong-password',
+        ])->assertStatus(429);
+
+        $this->assertGuest();
     }
 
     public function test_admin_login_rejects_invalid_email_format_with_existing_message(): void
